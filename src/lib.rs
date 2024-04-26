@@ -55,14 +55,15 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
         return Err(make_error("Scaling not supported, only 255 supported"));
     }
 
-    let mut img: Vec<Vec<RGB>> = Default::default();
-    img.resize(height as usize, vec![]);
+    // let mut img: Vec<Vec<RGB>> = Default::default();
+    // img.resize(height as usize, vec![]);
+    let mut img = image::RgbaImage::new(width, height);
 
     // Now, we iterate over the remaining lines, each holds a row for the image.
     for (li, l) in lines.enumerate() {
         let l = l?;
         // Allocate this row.
-        img[li].resize(width as usize, Default::default());
+        // img[li].resize(width as usize, Default::default());
         // Finally, parse the row.
         // https://doc.rust-lang.org/rust-by-example/error/iter_result.html
         let split = l.trim().split(' ').map(|x| str::parse::<u32>(x));
@@ -77,13 +78,15 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
 
         // Finally, we can convert the bytes.
         for i in 0..width as usize {
+            use image::GenericImage;
             let r = u8::try_from(numbers[i * 3])?;
             let g = u8::try_from(numbers[i * 3 + 1])?;
             let b = u8::try_from(numbers[i * 3 + 2])?;
-            img[li][i] = RGB { r, g, b };
+            // img[li][i] = RGB { r, g, b };
+            img.put_pixel(i as u32, li as u32, image::Rgba([r, g, b, 0]));
         }
     }
 
-    todo!();
-    // Ok(Box::new(raster_image::RasterImage::from_2d_vec(&img)))
+    // todo!();
+    Ok(Box::new(img))
 }

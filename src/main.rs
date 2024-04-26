@@ -25,6 +25,7 @@ fn main() {
             .expect("path must be ok"),
     )
     .unwrap();
+
     println!("Capture done writing");
 
     let buffer = img.get_data();
@@ -49,7 +50,12 @@ fn main() {
 
     println!("Cloning image.");
 
+    use std::time::{Duration, Instant};
+
+    let start = Instant::now();
     let z = img.clone();
+    let duration = start.elapsed();
+    println!("Time elapsed in expensive_function() is: {:?}", duration);
 
     let cloned_buffer = z.get_data().expect("expect a data buffer to be present");
     let orig_buffer = img.get_data().expect("expect a data buffer to be present");
@@ -69,7 +75,7 @@ fn main() {
     println!("First pixel: {:#?}", img.get_pixel(0, 0));
     println!(
         "last pixel: {:#?}",
-        img.get_pixel(img.get_width() - 1, img.get_height() - 1)
+        img.get_pixel(img.width() - 1, img.height() - 1)
     );
 
     for _i in 0..2 {
@@ -78,7 +84,7 @@ fn main() {
         let img = grabber.get_image();
         println!(
             "last pixel: {:#?}",
-            img.get_pixel(img.get_width() - 1, img.get_height() - 1)
+            img.get_pixel(img.width() - 1, img.height() - 1)
         );
     }
 }

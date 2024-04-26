@@ -9,23 +9,9 @@ struct ImageX11 {
     image: Option<*mut XImage>,
 }
 
-impl ImageX11 {}
+impl ImageX11 {
 
-impl Image for ImageX11 {
-    fn get_width(&self) -> u32 {
-        if self.image.is_none() {
-            panic!("Used get_width on an image that doesn't exist.");
-        }
-        unsafe { (*self.image.unwrap()).width as u32 }
-    }
-    fn get_height(&self) -> u32 {
-        if self.image.is_none() {
-            panic!("Used get_width on an image that doesn't exist.");
-        }
-        unsafe { (*self.image.unwrap()).height as u32 }
-    }
-
-    fn get_pixel(&self, x: u32, y: u32) -> RGB {
+    fn private_get_pixel(&self, x: u32, y: u32) -> RGB {
         if self.image.is_none() {
             panic!("no image present to retrieve pixel");
         }
@@ -53,7 +39,22 @@ impl Image for ImageX11 {
         }
     }
 
-    fn get_data(&self) -> Option<&[RGB]> {
+    fn get_width(&self) -> u32 {
+        if self.image.is_none() {
+            panic!("Used get_width on an image that doesn't exist.");
+        }
+        unsafe { (*self.image.unwrap()).width as u32 }
+    }
+    fn get_height(&self) -> u32 {
+        if self.image.is_none() {
+            panic!("Used get_width on an image that doesn't exist.");
+        }
+        unsafe { (*self.image.unwrap()).height as u32 }
+    }
+}
+
+impl Image for ImageX11 {
+    fn get_data(&self) -> Option<&[u8]> {
         if self.image.is_none() {
             return None; // we can fail gracefully, might as well.
         }
@@ -62,12 +63,27 @@ impl Image for ImageX11 {
             let width = image.width as usize;
             let height = image.height as usize;
             assert!(image.bits_per_pixel / 8 == 4);
-            let data = std::mem::transmute::<*const libc::c_char, *const RGB>(image.data);
-            let len = width * height;
+            let data = std::mem::transmute::<*const libc::c_char, *const u8>(image.data);
+            let len = width * height * 4;
             Some(std::slice::from_raw_parts(data, len))
         }
     }
 }
+
+
+impl image::GenericImageView for ImageX11 {
+    type Pixel = image::Rgba::<u8>;
+
+    fn dimensions(&self) -> (u32, u32) {
+        (self.get_width(), self.get_height())
+    }
+    fn get_pixel(&self, x: u32, y: u32) -> Self::Pixel {
+        let p = self.private_get_pixel(x, y);
+        image::Rgba::<u8>([p.r, p.g, p.b, 0])
+    }
+
+}
+
 
 /// Capture struct for X11.
 struct CaptureX11 {
