@@ -1,6 +1,4 @@
 //! Defines traits used by the desktop_frame crate.
-use crate::raster_image::RasterImage;
-
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 #[repr(C)]
 #[repr(align(4))]
@@ -150,7 +148,8 @@ pub trait Image {
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn Image> {
     fn clone(&self) -> Self {
-        return Box::new(RasterImage::new(self.as_ref()));
+        todo!()
+        // return Box::new(RasterImage::new(self.as_ref()));
     }
 }
 

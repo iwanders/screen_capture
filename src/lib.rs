@@ -2,8 +2,6 @@
 //!  - Using X11's [Xshm](https://en.wikipedia.org/wiki/MIT-SHM) extension for efficient retrieval on Linux.
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
 pub mod interface;
-pub mod raster_image;
-pub mod tracked_image;
 
 pub use interface::{Capture, Image, Resolution, RGB};
 
@@ -86,5 +84,6 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
         }
     }
 
-    Ok(Box::new(raster_image::RasterImage::from_2d_vec(&img)))
+    todo!();
+    // Ok(Box::new(raster_image::RasterImage::from_2d_vec(&img)))
 }
