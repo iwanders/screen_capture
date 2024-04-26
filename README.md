@@ -1,24 +1,13 @@
-# displaylight_rs
+# screen_capture
 
-![display_light_active](https://raw.githubusercontent.com/iwanders/DisplayLight/master/displaylight.gif)
+This is a fork of my [displaylight_rs](https://github.com/iwanders/displaylight_rs) project that contains just the `screen_capture` crate.
+That project was one of my earliest Rust projects and the `screen_capture` crate was reused in many projects that required capturing output from computer games and the like. In this fork I'm cleaning it up a bit and adding compatibility with the [image](https://github.com/image-rs/image) crate.
 
-This [Rust][rust] workspace is a rewrite of my [DisplayLight](https://github.com/iwanders/DisplayLight)
-project. It colors leds mounted behind the monitor with the colors shown on the display at that location, this is known as [bias lighting](https://en.wikipedia.org/wiki/Bias_lighting), (example [gif](https://github.com/iwanders/DisplayLight/blob/master/displaylight.gif)).
-
-Approach is still the same as in the original project:
 - Screen capture takes a snapshot of the screen and keeps it in shared memory.
   - Uses X11's shared memory extension [Xshm](https://en.wikipedia.org/wiki/MIT-SHM) on Linux.
   - Uses the [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) on Windows (with help of [windows-rs][windows-rs]).
-- Black border detection is performed to find the interesting region on the screen. Only allowing smooth transitions between border sizes to prevent flickerring in dark scenes.
-- Zones are created from this region of interest, each zone will map to one led.
-- Zones are sampled, sampled colors averaged to determine zone value and thus led color.
-- Led string is updated with the obtained values.
 
-The hardware is now based on an STM32F103 'blue pill' development board. It is further described in the [firmware](firmware) directory, the firmware is also written in Rust.
-
-Running on either Windows and on Linux is a matter of `cargo run --release`. Configuration lives in [config](displaylight/config/) and is selected based on the operating system. Performance is identical to the C++ version, running at ~3% of an i7-4770TE core when sampling a 1920x1080 image at 60 Hz.
-
-The [screen_capture](screen_capture) crate used to obtain the screen captures is completely stand alone and ~~could~~ has been used outside of this project.
+Both on Windows and Linux this makes it almost a zero overhead capture system. Especially if the image doesn't need to be copied.
 
 ## License
 License is `MIT OR Apache-2.0`.
