@@ -134,22 +134,25 @@ pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
         }
         Ok(())
     }
+
+    fn into_image(self) -> image::RgbaImage;
 }
 
-impl Image for image::ImageBuffer<image::Rgba<u8>, Vec<u8>> {
+impl Image for image::RgbaImage {
     fn get_data(&self) -> Option<&[u8]> {
         Some(self.as_raw())
     }
-
+    fn into_image(self) -> image::RgbaImage {
+        self
+    }
 }
 
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn Image> {
     fn clone(&self) -> Self {
         let data = self.get_data().expect("must have data to clone");
-        type Buf = image::ImageBuffer<image::Rgba<u8>, Vec<u8>>;
         let (w,h) = self.dimensions();
-        Box::new(Buf::from_raw(w,h, data.to_vec()).expect("must have correct dimensions"))
+        Box::new(image::RgbaImage::from_raw(w,h, data.to_vec()).expect("must have correct dimensions"))
     }
 }
 
