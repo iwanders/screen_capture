@@ -3,7 +3,7 @@
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
 pub mod interface;
 
-pub use interface::{Capture, Image, Resolution, RGB};
+pub use interface::{Capture, Image, Resolution};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
@@ -78,11 +78,9 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
 
         // Finally, we can convert the bytes.
         for i in 0..width as usize {
-            use image::GenericImage;
             let r = u8::try_from(numbers[i * 3])?;
             let g = u8::try_from(numbers[i * 3 + 1])?;
             let b = u8::try_from(numbers[i * 3 + 2])?;
-            // img[li][i] = RGB { r, g, b };
             img.put_pixel(i as u32, li as u32, image::Rgba([r, g, b, 0]));
         }
     }

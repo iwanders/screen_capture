@@ -3,53 +3,10 @@
 #[repr(C)]
 #[repr(align(4))]
 /// Struct to represent a single pixel.
-pub struct RGB {
+pub(crate) struct RGB {
     pub b: u8,
     pub g: u8,
     pub r: u8,
-}
-
-impl RGB {
-    pub fn from_i32(v: i32) -> Self {
-        // Checked godbolt, this evaporates to a single 'mov' and 'and' instruction.
-        RGB {
-            r: ((v >> 16) & 0xFF) as u8,
-            g: ((v >> 8) & 0xFF) as u8,
-            b: (v & 0xFF) as u8,
-        }
-    }
-
-    pub fn black() -> RGB {
-        RGB { r: 0, g: 0, b: 0 }
-    }
-    pub fn yellow() -> RGB {
-        RGB {
-            r: 255,
-            g: 255,
-            b: 0,
-        }
-    }
-    pub fn cyan() -> RGB {
-        RGB {
-            r: 0,
-            g: 255,
-            b: 255,
-        }
-    }
-    pub fn magenta() -> RGB {
-        RGB {
-            r: 255,
-            g: 0,
-            b: 255,
-        }
-    }
-    pub fn white() -> RGB {
-        RGB {
-            r: 255,
-            g: 255,
-            b: 255,
-        }
-    }
 }
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]

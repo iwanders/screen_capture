@@ -50,7 +50,7 @@ fn main() {
 
     println!("Cloning image.");
 
-    use std::time::{Duration, Instant};
+    use std::time::{Instant};
 
     let start = Instant::now();
     let z = img.clone();
