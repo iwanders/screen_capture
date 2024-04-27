@@ -3,13 +3,13 @@ use crate::interface::*;
 
 /// Raster image, an image owning all pixels that are in it.
 #[derive(Default)]
-pub struct RasterImage {
+pub struct RasterImageBGR {
     width: u32,
     height: u32,
     data: Vec<BGR>,
 }
 
-impl RasterImage {
+impl RasterImageBGR {
     fn index(&self, x: u32, y: u32) -> usize {
         (y * self.width + x) as usize
     }
@@ -23,13 +23,13 @@ impl RasterImage {
     }
 
     /// Create a raster image by copying the provided image into the internal storage.
-    pub fn new(img: &dyn ImageBGR) -> RasterImage {
+    pub fn new(img: &dyn ImageBGR) -> RasterImageBGR {
         let width = img.width();
         let height = img.height();
 
         // The fastest copy ever.
 
-        return RasterImage {
+        return RasterImageBGR {
             width,
             height,
             data: img.data().to_vec(),
@@ -37,8 +37,8 @@ impl RasterImage {
     }
 
     /// Create a new raster image of specified width and height, filled with the provided color.
-    pub fn filled(width: u32, height: u32, color: BGR) -> RasterImage {
-        let mut res: RasterImage = RasterImage {
+    pub fn filled(width: u32, height: u32, color: BGR) -> RasterImageBGR {
+        let mut res: RasterImageBGR = RasterImageBGR {
             width,
             height,
             data: vec![Default::default(); height as usize * width as usize],
@@ -61,13 +61,13 @@ impl RasterImage {
     }
 
     /// Create a raster image from the provided two dimension vector of pixels.
-    pub fn from_2d_vec(data: &[Vec<BGR>]) -> RasterImage {
+    pub fn from_2d_vec(data: &[Vec<BGR>]) -> RasterImageBGR {
         let height = data.len() as u32;
         let width = data
             .get(0)
             .expect("image should have at least one row")
             .len() as u32;
-        let mut res: RasterImage = RasterImage {
+        let mut res: RasterImageBGR = RasterImageBGR {
             width,
             height,
             data: vec![Default::default(); height as usize * width as usize],
@@ -126,7 +126,7 @@ impl RasterImage {
     }
 }
 
-impl ImageBGR for RasterImage {
+impl ImageBGR for RasterImageBGR {
     fn width(&self) -> u32 {
         self.width
     }
@@ -149,7 +149,7 @@ pub mod tests {
 
     #[test]
     fn test_draw_gradient() {
-        let mut img = RasterImage::filled(100, 100, BGR { r: 0, g: 0, b: 0 });
+        let mut img = RasterImageBGR::filled(100, 100, BGR { r: 0, g: 0, b: 0 });
         img.set_gradient(10, 90, 20, 80);
         img.write_bmp(
             temp_dir()

@@ -85,5 +85,5 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
         }
     }
 
-    Ok(Box::new(raster_image::RasterImage::from_2d_vec(&img)))
+    Ok(Box::new(raster_image::RasterImageBGR::from_2d_vec(&img)))
 }
