@@ -11,7 +11,7 @@ struct ImageX11 {
 
 impl ImageX11 {}
 
-impl Image for ImageX11 {
+impl ImageBGR for ImageX11 {
     fn width(&self) -> u32 {
         unsafe { (*self.image).width as u32 }
     }
@@ -182,7 +182,7 @@ impl Capture for CaptureX11 {
         }
         z
     }
-    fn image(&mut self) -> Result<Box<dyn Image>, ()> {
+    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ()> {
         if self.image.is_some() {
             Ok(Box::<ImageX11>::new(ImageX11 {
                 image: self.image.unwrap(),

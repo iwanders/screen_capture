@@ -4,7 +4,7 @@
 pub mod interface;
 pub mod raster_image;
 
-pub use interface::{Capture, Image, Resolution, BGR};
+pub use interface::{Capture, ImageBGR, Resolution, BGR};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
@@ -16,7 +16,7 @@ pub fn capture() -> Box<dyn Capture> {
 }
 
 /// Reads a ppm image from disk. (or rather ppms written by [`Image::write_ppm`]).
-pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Error>> {
+pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error::Error>> {
     use std::fs::File;
     let file = File::open(filename)?;
     use std::io::{BufRead, BufReader};

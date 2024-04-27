@@ -62,7 +62,7 @@ pub struct Resolution {
 }
 
 /// Trait for something that represents an image.
-pub trait Image {
+pub trait ImageBGR {
     /// Returns the width of the image.
     fn width(&self) -> u32;
 
@@ -146,7 +146,7 @@ pub trait Image {
 }
 
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.
-impl Clone for Box<dyn Image> {
+impl Clone for Box<dyn ImageBGR> {
     fn clone(&self) -> Self {
         return Box::new(RasterImage::new(self.as_ref()));
     }
@@ -159,7 +159,7 @@ pub trait Capture {
 
     /// Retrieve the image for access. By default this may be backed by the internal buffer
     /// created by capture_image.
-    fn image(&mut self) -> Result<Box<dyn Image>, ()>;
+    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ()>;
 
     /// Retrieve the current full desktop resolution.
     fn resolution(&mut self) -> Resolution;
@@ -169,12 +169,13 @@ pub trait Capture {
     /// trying to capture an image, as setup may happen here.
     fn prepare_capture(
         &mut self,
-        _display: u32,
-        _x: u32,
-        _y: u32,
-        _width: u32,
-        _height: u32,
+        display: u32,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
     ) -> bool {
+        let _ = (display, x, y, width, height);
         false
     }
 }

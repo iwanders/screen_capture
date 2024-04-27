@@ -23,7 +23,7 @@ impl RasterImage {
     }
 
     /// Create a raster image by copying the provided image into the internal storage.
-    pub fn new(img: &dyn Image) -> RasterImage {
+    pub fn new(img: &dyn ImageBGR) -> RasterImage {
         let width = img.width();
         let height = img.height();
 
@@ -126,7 +126,7 @@ impl RasterImage {
     }
 }
 
-impl Image for RasterImage {
+impl ImageBGR for RasterImage {
     fn width(&self) -> u32 {
         self.width
     }
