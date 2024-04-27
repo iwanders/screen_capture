@@ -25,7 +25,7 @@ impl Image for ImageX11 {
         unsafe { (*self.image.unwrap()).height as u32 }
     }
 
-    fn get_pixel(&self, x: u32, y: u32) -> RGB {
+    fn get_pixel(&self, x: u32, y: u32) -> BGR {
         if self.image.is_none() {
             panic!("no image present to retrieve pixel");
         }
@@ -45,7 +45,7 @@ impl Image for ImageX11 {
                 data.offset((y * width * stride + x * stride).try_into().unwrap()),
             );
             let masked = as_integer & 0x00FFFFFF;
-            RGB {
+            BGR {
                 r: ((masked >> 16) & 0xFF) as u8,
                 g: ((masked >> 8) & 0xFF) as u8,
                 b: (masked & 0xFF) as u8,
@@ -53,7 +53,7 @@ impl Image for ImageX11 {
         }
     }
 
-    fn get_data(&self) -> Option<&[RGB]> {
+    fn get_data(&self) -> Option<&[BGR]> {
         if self.image.is_none() {
             return None; // we can fail gracefully, might as well.
         }
@@ -62,7 +62,7 @@ impl Image for ImageX11 {
             let width = image.width as usize;
             let height = image.height as usize;
             assert!(image.bits_per_pixel / 8 == 4);
-            let data = std::mem::transmute::<*const libc::c_char, *const RGB>(image.data);
+            let data = std::mem::transmute::<*const libc::c_char, *const BGR>(image.data);
             let len = width * height;
             Some(std::slice::from_raw_parts(data, len))
         }

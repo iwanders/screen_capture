@@ -31,7 +31,7 @@ impl TrackedImage {
                     img.set_pixel(
                         *x,
                         *y,
-                        RGB {
+                        BGR {
                             r: 255,
                             g: std::cmp::min(255, old.g as u32 + 20) as u8,
                             b: std::cmp::min(255, old.b as u32 + 20) as u8,
@@ -56,7 +56,7 @@ impl Image for TrackedImage {
         self.img.get_height()
     }
 
-    fn get_pixel(&self, x: u32, y: u32) -> RGB {
+    fn get_pixel(&self, x: u32, y: u32) -> BGR {
         self.events.borrow_mut().push(Event::Read(x, y));
         self.img.get_pixel(x, y)
     }

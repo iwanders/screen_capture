@@ -6,7 +6,7 @@ use crate::interface::*;
 pub struct RasterImage {
     width: u32,
     height: u32,
-    data: Vec<RGB>,
+    data: Vec<BGR>,
 }
 
 impl RasterImage {
@@ -14,10 +14,10 @@ impl RasterImage {
         (y * self.width + x) as usize
     }
 
-    fn data_rgb(&self, x: u32, y: u32) -> &RGB {
+    fn data_rgb(&self, x: u32, y: u32) -> &BGR {
         &self.data[self.index(x, y)]
     }
-    fn data_rgb_mut(&mut self, x: u32, y: u32) -> &mut RGB {
+    fn data_rgb_mut(&mut self, x: u32, y: u32) -> &mut BGR {
         let index = self.index(x, y);
         &mut self.data[index]
     }
@@ -50,7 +50,7 @@ impl RasterImage {
     }
 
     /// Create a new raster image of specified width and height, filled with the provided color.
-    pub fn filled(width: u32, height: u32, color: RGB) -> RasterImage {
+    pub fn filled(width: u32, height: u32, color: BGR) -> RasterImage {
         let mut res: RasterImage = RasterImage {
             width,
             height,
@@ -65,7 +65,7 @@ impl RasterImage {
     }
 
     /// Fill a rectangle with a certain color.
-    pub fn fill_rectangle(&mut self, x_min: u32, x_max: u32, y_min: u32, y_max: u32, color: RGB) {
+    pub fn fill_rectangle(&mut self, x_min: u32, x_max: u32, y_min: u32, y_max: u32, color: BGR) {
         for y in y_min..y_max {
             for x in x_min..x_max {
                 self.set_pixel(x, y, color);
@@ -74,7 +74,7 @@ impl RasterImage {
     }
 
     /// Create a raster image from the provided two dimension vector of pixels.
-    pub fn from_2d_vec(data: &[Vec<RGB>]) -> RasterImage {
+    pub fn from_2d_vec(data: &[Vec<BGR>]) -> RasterImage {
         let height = data.len() as u32;
         let width = data
             .get(0)
@@ -94,7 +94,7 @@ impl RasterImage {
     }
 
     /// Set a specific pixel to the provided color.
-    pub fn set_pixel(&mut self, x: u32, y: u32, color: RGB) {
+    pub fn set_pixel(&mut self, x: u32, y: u32, color: BGR) {
         let width = self.get_width();
         let height = self.get_height();
         if x > width || y > height {
@@ -113,7 +113,7 @@ impl RasterImage {
                 self.set_pixel(
                     x,
                     y,
-                    RGB {
+                    BGR {
                         r: (((x - x_min) as f64 * r_step) as u32 % 256) as u8,
                         g: (((y - y_min) as f64 * g_step) as u32 % 256) as u8,
                         b: 255 - (((x - x_min) as f64 * r_step) as u32 % 256) as u8,
@@ -128,7 +128,7 @@ impl RasterImage {
         for y in 0..self.get_height() {
             for x in 0..self.get_width() {
                 let old = self.get_pixel(x, y);
-                let new = RGB {
+                let new = BGR {
                     r: (old.r as f32 * f) as u8,
                     g: (old.g as f32 * f) as u8,
                     b: (old.b as f32 * f) as u8,
@@ -146,11 +146,11 @@ impl Image for RasterImage {
     fn get_height(&self) -> u32 {
         self.height
     }
-    fn get_pixel(&self, x: u32, y: u32) -> RGB {
+    fn get_pixel(&self, x: u32, y: u32) -> BGR {
         *self.data_rgb(x, y)
     }
 
-    fn get_data(&self) -> Option<&[RGB]> {
+    fn get_data(&self) -> Option<&[BGR]> {
         Some(&self.data)
     }
 }
@@ -162,7 +162,7 @@ pub mod tests {
 
     #[test]
     fn test_draw_gradient() {
-        let mut img = RasterImage::filled(100, 100, RGB { r: 0, g: 0, b: 0 });
+        let mut img = RasterImage::filled(100, 100, BGR { r: 0, g: 0, b: 0 });
         img.set_gradient(10, 90, 20, 80);
         img.write_bmp(
             temp_dir()
@@ -174,6 +174,6 @@ pub mod tests {
 
         let v = img.get_data();
         assert!(v.is_some());
-        println!("rgb sizeof: {}", std::mem::size_of::<RGB>());
+        println!("rgb sizeof: {}", std::mem::size_of::<BGR>());
     }
 }

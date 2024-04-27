@@ -5,48 +5,48 @@ use crate::raster_image::RasterImage;
 #[repr(C)]
 #[repr(align(4))]
 /// Struct to represent a single pixel.
-pub struct RGB {
+pub struct BGR {
     pub b: u8,
     pub g: u8,
     pub r: u8,
 }
 
-impl RGB {
+impl BGR {
     pub fn from_i32(v: i32) -> Self {
         // Checked godbolt, this evaporates to a single 'mov' and 'and' instruction.
-        RGB {
+        BGR {
             r: ((v >> 16) & 0xFF) as u8,
             g: ((v >> 8) & 0xFF) as u8,
             b: (v & 0xFF) as u8,
         }
     }
 
-    pub fn black() -> RGB {
-        RGB { r: 0, g: 0, b: 0 }
+    pub fn black() -> BGR {
+        BGR { r: 0, g: 0, b: 0 }
     }
-    pub fn yellow() -> RGB {
-        RGB {
+    pub fn yellow() -> BGR {
+        BGR {
             r: 255,
             g: 255,
             b: 0,
         }
     }
-    pub fn cyan() -> RGB {
-        RGB {
+    pub fn cyan() -> BGR {
+        BGR {
             r: 0,
             g: 255,
             b: 255,
         }
     }
-    pub fn magenta() -> RGB {
-        RGB {
+    pub fn magenta() -> BGR {
+        BGR {
             r: 255,
             g: 0,
             b: 255,
         }
     }
-    pub fn white() -> RGB {
-        RGB {
+    pub fn white() -> BGR {
+        BGR {
             r: 255,
             g: 255,
             b: 255,
@@ -70,10 +70,10 @@ pub trait Image {
     fn get_height(&self) -> u32;
 
     /// Returns a specific pixel's value. The x must be less then width, y less than height.
-    fn get_pixel(&self, x: u32, y: u32) -> RGB;
+    fn get_pixel(&self, x: u32, y: u32) -> BGR;
 
     /// Returns the raw data buffer behind this image.
-    fn get_data(&self) -> Option<&[RGB]> {
+    fn get_data(&self) -> Option<&[BGR]> {
         None
     }
 
@@ -191,15 +191,15 @@ pub mod tests {
         // the actual pixel values.
         /*
         let masked = as_integer & 0x00FFFFFF;
-        RGB {
+        BGR {
             r: ((masked >> 16) & 0xFF) as u8,
             g: ((masked >> 8) & 0xFF) as u8,
             b: (masked & 0xFF) as u8,
         }*/
-        // Lets make the RGB struct follow that order.
+        // Lets make the BGR struct follow that order.
         let as_integer = 0x00112233;
         let masked = as_integer & 0x00FFFFFF;
-        let p = RGB {
+        let p = BGR {
             r: ((masked >> 16) & 0xFF) as u8,
             g: ((masked >> 8) & 0xFF) as u8,
             b: (masked & 0xFF) as u8,
@@ -214,11 +214,11 @@ pub mod tests {
         // now, we can make an integer, reinterpret cast the thing and check that.
         unsafe {
             let rgb_from_integer =
-                std::mem::transmute::<*const i32, *const RGB>(&as_integer as *const i32);
+                std::mem::transmute::<*const i32, *const BGR>(&as_integer as *const i32);
             assert_eq!((*rgb_from_integer).r, 0x11);
             assert_eq!((*rgb_from_integer).g, 0x22);
             assert_eq!((*rgb_from_integer).b, 0x33);
         }
-        assert_eq!(std::mem::size_of::<RGB>(), std::mem::size_of::<u32>());
+        assert_eq!(std::mem::size_of::<BGR>(), std::mem::size_of::<u32>());
     }
 }

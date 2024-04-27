@@ -76,7 +76,7 @@ impl Image for ImageWin {
         self.height
     }
 
-    fn get_pixel(&self, x: u32, y: u32) -> RGB {
+    fn get_pixel(&self, x: u32, y: u32) -> BGR {
         if x > self.width || y > self.height {
             panic!("Retrieved out of bounds ({}, {})", x, y);
         }
@@ -99,7 +99,7 @@ impl Image for ImageWin {
             );
             let masked = as_integer & 0x00FFFFFF;
             // println!("as integer: {}", as_integer);
-            return RGB {
+            return BGR {
                 r: ((masked >> 16) & 0xFF) as u8,
                 g: ((masked >> 8) & 0xFF) as u8,
                 b: (masked & 0xFF) as u8,
@@ -107,11 +107,11 @@ impl Image for ImageWin {
         }
     }
 
-    fn get_data(&self) -> Option<&[RGB]> {
+    fn get_data(&self) -> Option<&[BGR]> {
         // Should always have an image.
         unsafe {
             let data =
-                std::mem::transmute::<*const core::ffi::c_void, *const RGB>(self.mapped.pData);
+                std::mem::transmute::<*const core::ffi::c_void, *const BGR>(self.mapped.pData);
             let width = self.width as usize;
             let height = self.height as usize;
             let stride = (self.mapped.RowPitch / self.width) as u32;

@@ -5,7 +5,7 @@ pub mod interface;
 pub mod raster_image;
 pub mod tracked_image;
 
-pub use interface::{Capture, Image, Resolution, RGB};
+pub use interface::{Capture, Image, Resolution, BGR};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
@@ -57,7 +57,7 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
         return Err(make_error("Scaling not supported, only 255 supported"));
     }
 
-    let mut img: Vec<Vec<RGB>> = Default::default();
+    let mut img: Vec<Vec<BGR>> = Default::default();
     img.resize(height as usize, vec![]);
 
     // Now, we iterate over the remaining lines, each holds a row for the image.
@@ -82,7 +82,7 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
             let r = u8::try_from(numbers[i * 3])?;
             let g = u8::try_from(numbers[i * 3 + 1])?;
             let b = u8::try_from(numbers[i * 3 + 2])?;
-            img[li][i] = RGB { r, g, b };
+            img[li][i] = BGR { r, g, b };
         }
     }
 

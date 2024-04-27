@@ -27,10 +27,11 @@ fn main() {
     .unwrap();
     img.write_bmp(temp_dir().join("grab.bmp").to_str().expect("path must be ok"))
         .unwrap();
+
     {
-        let buff = image::DynamicImage::ImageRgba8(img.to_image()).into_rgb8();
-        println!("buf: {:?}", &buff.as_raw()[0..20]);
-        buff.save("/tmp/grab.png").unwrap();
+        // let buff = image::DynamicImage::ImageRgba8(img.to_image()).into_rgb8();
+        // println!("buf: {:?}", &buff.as_raw()[0..20]);
+        // buff.save("/tmp/grab.png").unwrap();
     }
     panic!();
 
@@ -76,8 +77,8 @@ fn main() {
 
     println!("Time elapsed in expensive_function() is: {:?}", duration);
     {
-        let buff = cloned_img.clone().to_image();
-        buff.save("/tmp/cloned_to_image.png").unwrap();
+        // let buff = cloned_img.clone().to_image();
+        // buff.save("/tmp/cloned_to_image.png").unwrap();
     }
 
     let cloned_buffer = cloned_img.get_data().expect("expect a data buffer to be present");
@@ -98,7 +99,7 @@ fn main() {
     println!("First pixel: {:#?}", img.get_pixel(0, 0));
     println!(
         "last pixel: {:#?}",
-        img.get_pixel(img.width() - 1, img.height() - 1)
+        img.get_pixel(img.get_width() - 1, img.get_height() - 1)
     );
 
     for _i in 0..2 {
@@ -107,7 +108,7 @@ fn main() {
         let img = grabber.get_image();
         println!(
             "last pixel: {:#?}",
-            img.get_pixel(img.width() - 1, img.height() - 1)
+            img.get_pixel(img.get_width() - 1, img.get_height() - 1)
         );
     }
 }
