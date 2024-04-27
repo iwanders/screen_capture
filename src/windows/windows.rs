@@ -69,14 +69,14 @@ impl ImageWin {
 }
 
 impl Image for ImageWin {
-    fn get_width(&self) -> u32 {
+    fn width(&self) -> u32 {
         self.width
     }
-    fn get_height(&self) -> u32 {
+    fn height(&self) -> u32 {
         self.height
     }
 
-    fn get_pixel(&self, x: u32, y: u32) -> BGR {
+    fn pixel(&self, x: u32, y: u32) -> BGR {
         if x > self.width || y > self.height {
             panic!("Retrieved out of bounds ({}, {})", x, y);
         }
@@ -107,7 +107,7 @@ impl Image for ImageWin {
         }
     }
 
-    fn get_data(&self) -> Option<&[BGR]> {
+    fn data(&self) -> Option<&[BGR]> {
         // Should always have an image.
         unsafe {
             let data =
@@ -152,7 +152,7 @@ fn from_wide(arr: &[u16]) -> OsString {
 impl CaptureWin {
     fn init_adaptor(&mut self) -> Result<()> {
         // let (factory, device) = create_device().expect("Must have a device.");
-        // let adaptor = get_hardware_adapter(&factory).expect("Must have an adaptor.");
+        // let adaptor = hardware_adapter(&factory).expect("Must have an adaptor.");
         // self.adaptor = Some(adaptor);
 
         let dxgi_factory_flags = DXGI_CREATE_FACTORY_DEBUG;
@@ -425,7 +425,7 @@ impl CaptureWin {
         Ok(())
     }
 
-    fn get_image(&mut self) -> Result<ImageWin> {
+    fn image(&mut self) -> Result<ImageWin> {
         // Need to make a new image here now, because we can't copy into mapped images, so we need to ensure we hand off a
         // fresh image.
         let image = self
@@ -473,11 +473,11 @@ impl Capture for CaptureWin {
         let res = CaptureWin::capture(self);
         return res.is_ok();
     }
-    fn get_image(&mut self) -> Box<dyn Image> {
-        Box::<ImageWin>::new(CaptureWin::get_image(self).expect("Should succeed"))
+    fn image(&mut self) -> Box<dyn Image> {
+        Box::<ImageWin>::new(CaptureWin::image(self).expect("Should succeed"))
     }
 
-    fn get_resolution(&mut self) -> Resolution {
+    fn resolution(&mut self) -> Resolution {
         Resolution {
             width: 0,
             height: 0,
@@ -489,7 +489,7 @@ impl Capture for CaptureWin {
     }
 }
 
-pub fn get_capture() -> Box<dyn Capture> {
+pub fn capture() -> Box<dyn Capture> {
     let z = Box::<CaptureWin>::new(CaptureWin::new());
     z
 }

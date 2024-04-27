@@ -64,16 +64,16 @@ pub struct Resolution {
 /// Trait for something that represents an image.
 pub trait Image {
     /// Returns the width of the image.
-    fn get_width(&self) -> u32;
+    fn width(&self) -> u32;
 
     /// Returns the height of the image.
-    fn get_height(&self) -> u32;
+    fn height(&self) -> u32;
 
     /// Returns a specific pixel's value. The x must be less then width, y less than height.
-    fn get_pixel(&self, x: u32, y: u32) -> BGR;
+    fn pixel(&self, x: u32, y: u32) -> BGR;
 
     /// Returns the raw data buffer behind this image.
-    fn get_data(&self) -> Option<&[BGR]> {
+    fn data(&self) -> Option<&[BGR]> {
         None
     }
 
@@ -83,15 +83,15 @@ pub trait Image {
         use std::io::prelude::*;
         let mut file = File::create(filename)?;
         file.write_all(b"P3\n")?;
-        let width = self.get_width();
-        let height = self.get_height();
+        let width = self.width();
+        let height = self.height();
         file.write_all(format!("{} {}\n", width, height).as_ref())?;
         file.write_all(b"255\n")?;
         for y in 0..height {
             let mut v: String = Default::default();
             v.reserve(4 * 3 * width as usize);
             for x in 0..width {
-                let color = self.get_pixel(x, y);
+                let color = self.pixel(x, y);
                 use std::fmt::Write;
                 write!(v, "{} {} {} ", color.r, color.g, color.b).unwrap();
             }
@@ -107,8 +107,8 @@ pub trait Image {
         use std::fs::File;
         use std::io::prelude::*;
         let mut file = File::create(filename)?;
-        let width = self.get_width();
-        let height = self.get_height();
+        let width = self.width();
+        let height = self.height();
         let pad = (((width as i32) * -3) & 3) as u32;
         let total = 54 + 3 * width * height + pad * height;
         let head: [u32; 7] = [total, 0, 54, 40, width, height, (24 << 16) | 1];
@@ -135,7 +135,7 @@ pub trait Image {
         for y in 0..height {
             // populate the row
             for x in 0..width {
-                let color = self.get_pixel(x, height - y - 1);
+                let color = self.pixel(x, height - y - 1);
                 row[(x * 3) as usize] = color.b;
                 row[(x * 3 + 1) as usize] = color.g;
                 row[(x * 3 + 2) as usize] = color.r;
@@ -161,10 +161,10 @@ pub trait Capture {
 
     /// Retrieve the image for access. By default this may be backed by the internal buffer
     /// created by capture_image.
-    fn get_image(&mut self) -> Box<dyn Image>;
+    fn image(&mut self) -> Box<dyn Image>;
 
     /// Retrieve the current full desktop resolution.
-    fn get_resolution(&mut self) -> Resolution;
+    fn resolution(&mut self) -> Resolution;
 
     /// Attempt to prepare capture for a subsection of the entire desktop.
     /// This is implementation defined and not guaranteed to do anything. It MUST be called before

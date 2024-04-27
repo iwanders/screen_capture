@@ -12,25 +12,25 @@ struct ImageX11 {
 impl ImageX11 {}
 
 impl Image for ImageX11 {
-    fn get_width(&self) -> u32 {
+    fn width(&self) -> u32 {
         if self.image.is_none() {
-            panic!("Used get_width on an image that doesn't exist.");
+            panic!("Used width on an image that doesn't exist.");
         }
         unsafe { (*self.image.unwrap()).width as u32 }
     }
-    fn get_height(&self) -> u32 {
+    fn height(&self) -> u32 {
         if self.image.is_none() {
-            panic!("Used get_width on an image that doesn't exist.");
+            panic!("Used width on an image that doesn't exist.");
         }
         unsafe { (*self.image.unwrap()).height as u32 }
     }
 
-    fn get_pixel(&self, x: u32, y: u32) -> BGR {
+    fn pixel(&self, x: u32, y: u32) -> BGR {
         if self.image.is_none() {
             panic!("no image present to retrieve pixel");
         }
-        let width = self.get_width();
-        let height = self.get_height();
+        let width = self.width();
+        let height = self.height();
         if x > width || y > height {
             panic!("Retrieved out of bounds ({}, {})", x, y);
         }
@@ -53,7 +53,7 @@ impl Image for ImageX11 {
         }
     }
 
-    fn get_data(&self) -> Option<&[BGR]> {
+    fn data(&self) -> Option<&[BGR]> {
         if self.image.is_none() {
             return None; // we can fail gracefully, might as well.
         }
@@ -196,7 +196,7 @@ impl Capture for CaptureX11 {
         }
         z
     }
-    fn get_image(&mut self) -> Box<dyn Image> {
+    fn image(&mut self) -> Box<dyn Image> {
         if self.image.is_some() {
             Box::<ImageX11>::new(ImageX11 {
                 image: Some(self.image.unwrap()),
@@ -206,7 +206,7 @@ impl Capture for CaptureX11 {
         }
     }
 
-    fn get_resolution(&mut self) -> Resolution {
+    fn resolution(&mut self) -> Resolution {
         let mut x: i32 = 0;
         let mut y: i32 = 0;
         let mut width: u32 = 0;
@@ -241,7 +241,7 @@ unsafe extern "C" fn error_handler(_display: *mut Display, event: *mut XErrorEve
     0
 }
 
-pub fn get_capture() -> Box<dyn Capture> {
+pub fn capture() -> Box<dyn Capture> {
     unsafe {
         XSetErrorHandler(error_handler);
     }

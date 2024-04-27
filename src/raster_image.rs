@@ -24,11 +24,11 @@ impl RasterImage {
 
     /// Create a raster image by copying the provided image into the internal storage.
     pub fn new(img: &dyn Image) -> RasterImage {
-        let width = img.get_width();
-        let height = img.get_height();
+        let width = img.width();
+        let height = img.height();
 
         // The fastest copy ever.
-        if let Some(buffer) = img.get_data() {
+        if let Some(buffer) = img.data() {
             return RasterImage {
                 width,
                 height,
@@ -43,7 +43,7 @@ impl RasterImage {
         };
         for y in 0..res.height {
             for x in 0..res.width {
-                *res.data_rgb_mut(x, y) = img.get_pixel(x, y);
+                *res.data_rgb_mut(x, y) = img.pixel(x, y);
             }
         }
         res
@@ -95,8 +95,8 @@ impl RasterImage {
 
     /// Set a specific pixel to the provided color.
     pub fn set_pixel(&mut self, x: u32, y: u32, color: BGR) {
-        let width = self.get_width();
-        let height = self.get_height();
+        let width = self.width();
+        let height = self.height();
         if x > width || y > height {
             panic!("Trying to set out of bounds ({}, {})", x, y);
         }
@@ -125,9 +125,9 @@ impl RasterImage {
 
     /// Multiply each value in the image with a float.
     pub fn scalar_multiply(&mut self, f: f32) {
-        for y in 0..self.get_height() {
-            for x in 0..self.get_width() {
-                let old = self.get_pixel(x, y);
+        for y in 0..self.height() {
+            for x in 0..self.width() {
+                let old = self.pixel(x, y);
                 let new = BGR {
                     r: (old.r as f32 * f) as u8,
                     g: (old.g as f32 * f) as u8,
@@ -140,17 +140,17 @@ impl RasterImage {
 }
 
 impl Image for RasterImage {
-    fn get_width(&self) -> u32 {
+    fn width(&self) -> u32 {
         self.width
     }
-    fn get_height(&self) -> u32 {
+    fn height(&self) -> u32 {
         self.height
     }
-    fn get_pixel(&self, x: u32, y: u32) -> BGR {
+    fn pixel(&self, x: u32, y: u32) -> BGR {
         *self.data_rgb(x, y)
     }
 
-    fn get_data(&self) -> Option<&[BGR]> {
+    fn data(&self) -> Option<&[BGR]> {
         Some(&self.data)
     }
 }
@@ -172,7 +172,7 @@ pub mod tests {
         )
         .unwrap();
 
-        let v = img.get_data();
+        let v = img.data();
         assert!(v.is_some());
         println!("rgb sizeof: {}", std::mem::size_of::<BGR>());
     }

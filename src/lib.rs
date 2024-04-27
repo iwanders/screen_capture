@@ -3,7 +3,6 @@
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
 pub mod interface;
 pub mod raster_image;
-pub mod tracked_image;
 
 pub use interface::{Capture, Image, Resolution, BGR};
 
@@ -12,8 +11,8 @@ pub use interface::{Capture, Image, Resolution, BGR};
 mod backend;
 
 /// Get a new instance of the desktop frame grabber for this platform.
-pub fn get_capture() -> Box<dyn Capture> {
-    backend::get_capture()
+pub fn capture() -> Box<dyn Capture> {
+    backend::capture()
 }
 
 /// Reads a ppm image from disk. (or rather ppms written by [`Image::write_ppm`]).
