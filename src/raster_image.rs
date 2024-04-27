@@ -28,25 +28,12 @@ impl RasterImage {
         let height = img.height();
 
         // The fastest copy ever.
-        if let Some(buffer) = img.data() {
-            return RasterImage {
-                width,
-                height,
-                data: buffer.to_vec(),
-            };
-        }
 
-        let mut res: RasterImage = RasterImage {
+        return RasterImage {
             width,
             height,
-            data: vec![Default::default(); height as usize * width as usize],
+            data: img.data().to_vec(),
         };
-        for y in 0..res.height {
-            for x in 0..res.width {
-                *res.data_rgb_mut(x, y) = img.pixel(x, y);
-            }
-        }
-        res
     }
 
     /// Create a new raster image of specified width and height, filled with the provided color.
@@ -150,8 +137,8 @@ impl Image for RasterImage {
         *self.data_rgb(x, y)
     }
 
-    fn data(&self) -> Option<&[BGR]> {
-        Some(&self.data)
+    fn data(&self) -> &[BGR] {
+        &self.data
     }
 }
 

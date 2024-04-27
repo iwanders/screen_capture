@@ -3,9 +3,9 @@ use std::env::temp_dir;
 
 fn main() {
 
-    let mut grabber = screen_capture::get_capture();
+    let mut grabber = screen_capture::capture();
 
-    let res = grabber.get_resolution();
+    let res = grabber.resolution();
 
     println!("Capture reports resolution of: {:?}", res);
     grabber.prepare_capture(0, 1920, 0, res.width - 1920, res.height);
@@ -16,7 +16,7 @@ fn main() {
     }
 
     println!("Capture tried to capture image, succes? {}", res);
-    let img = grabber.get_image();
+    let img = grabber.image().expect("grab image should succeed");
     println!("Capture writing to temp {:?}", temp_dir());
     img.write_ppm(
         temp_dir()
@@ -37,10 +37,8 @@ fn main() {
 
     println!("Capture done writing");
 
-    let buffer = img.get_data();
-    if buffer.is_none() {
-        panic!("image didn't provide any data");
-    }
+    let buffer = img.data();
+
 
     let read_ppm = screen_capture::read_ppm(
         temp_dir()
@@ -81,8 +79,8 @@ fn main() {
         // buff.save("/tmp/cloned_to_image.png").unwrap();
     }
 
-    let cloned_buffer = cloned_img.get_data().expect("expect a data buffer to be present");
-    let orig_buffer = img.get_data().expect("expect a data buffer to be present");
+    let cloned_buffer = cloned_img.data();
+    let orig_buffer = img.data();
     if cloned_buffer != orig_buffer {
         println!("{:?}\n{:?}", &cloned_buffer[0..20], &orig_buffer[0..20]);
         println!("cloned_buffer: {}", cloned_buffer.len());
@@ -96,19 +94,19 @@ fn main() {
     cloned_img.write_bmp(temp_dir().join("cloned_img_write_bmp.bmp").to_str().expect("path must be ok"))
         .unwrap();
     println!("Capture done writing");
-    println!("First pixel: {:#?}", img.get_pixel(0, 0));
+    println!("First pixel: {:#?}", img.pixel(0, 0));
     println!(
         "last pixel: {:#?}",
-        img.get_pixel(img.get_width() - 1, img.get_height() - 1)
+        img.pixel(img.width() - 1, img.height() - 1)
     );
 
     for _i in 0..2 {
         let res = grabber.capture_image();
         println!("Capture tried to capture image, succes? {}", res);
-        let img = grabber.get_image();
+        let img = grabber.image().expect("should succeed");
         println!(
             "last pixel: {:#?}",
-            img.get_pixel(img.get_width() - 1, img.get_height() - 1)
+            img.pixel(img.width() - 1, img.height() - 1)
         );
     }
 }

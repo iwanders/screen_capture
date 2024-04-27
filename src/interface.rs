@@ -73,9 +73,7 @@ pub trait Image {
     fn pixel(&self, x: u32, y: u32) -> BGR;
 
     /// Returns the raw data buffer behind this image.
-    fn data(&self) -> Option<&[BGR]> {
-        None
-    }
+    fn data(&self) -> &[BGR];
 
     /// Dump a ppm file to disk.
     fn write_ppm(&self, filename: &str) -> std::io::Result<()> {
@@ -161,7 +159,7 @@ pub trait Capture {
 
     /// Retrieve the image for access. By default this may be backed by the internal buffer
     /// created by capture_image.
-    fn image(&mut self) -> Box<dyn Image>;
+    fn image(&mut self) -> Result<Box<dyn Image>, ()>;
 
     /// Retrieve the current full desktop resolution.
     fn resolution(&mut self) -> Resolution;

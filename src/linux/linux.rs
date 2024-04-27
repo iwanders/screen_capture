@@ -6,29 +6,20 @@ mod shm;
 
 /// Image wrapper around XImage.
 struct ImageX11 {
-    image: Option<*mut XImage>,
+    image: *mut XImage,
 }
 
 impl ImageX11 {}
 
 impl Image for ImageX11 {
     fn width(&self) -> u32 {
-        if self.image.is_none() {
-            panic!("Used width on an image that doesn't exist.");
-        }
-        unsafe { (*self.image.unwrap()).width as u32 }
+        unsafe { (*self.image).width as u32 }
     }
     fn height(&self) -> u32 {
-        if self.image.is_none() {
-            panic!("Used width on an image that doesn't exist.");
-        }
-        unsafe { (*self.image.unwrap()).height as u32 }
+        unsafe { (*self.image).height as u32 }
     }
 
     fn pixel(&self, x: u32, y: u32) -> BGR {
-        if self.image.is_none() {
-            panic!("no image present to retrieve pixel");
-        }
         let width = self.width();
         let height = self.height();
         if x > width || y > height {
@@ -36,7 +27,7 @@ impl Image for ImageX11 {
         }
 
         unsafe {
-            let image = &(*(self.image.unwrap()));
+            let image = &(*self.image);
             // println!("Image: {:?}", self.image.unwrap());
             // Do some pointer magic and reach into the data, do a few casts and we're golden.
             let data = std::mem::transmute::<*const libc::c_char, *const u8>(image.data);
@@ -53,18 +44,15 @@ impl Image for ImageX11 {
         }
     }
 
-    fn data(&self) -> Option<&[BGR]> {
-        if self.image.is_none() {
-            return None; // we can fail gracefully, might as well.
-        }
+    fn data(&self) -> &[BGR] {
         unsafe {
-            let image = &(*(self.image.unwrap()));
+            let image = &(*self.image);
             let width = image.width as usize;
             let height = image.height as usize;
             assert!(image.bits_per_pixel / 8 == 4);
             let data = std::mem::transmute::<*const libc::c_char, *const BGR>(image.data);
             let len = width * height;
-            Some(std::slice::from_raw_parts(data, len))
+            std::slice::from_raw_parts(data, len)
         }
     }
 }
@@ -83,9 +71,7 @@ impl Drop for CaptureX11 {
     fn drop(&mut self) {
         // Clean up the memory correctly.
         unsafe {
-            if self.image.is_some() {
-                XDestroyImage(self.image.unwrap());
-            }
+            XDestroyImage(self.image.unwrap());
         }
     }
 }
@@ -196,13 +182,13 @@ impl Capture for CaptureX11 {
         }
         z
     }
-    fn image(&mut self) -> Box<dyn Image> {
+    fn image(&mut self) -> Result<Box<dyn Image>, ()> {
         if self.image.is_some() {
-            Box::<ImageX11>::new(ImageX11 {
-                image: Some(self.image.unwrap()),
-            })
+            Ok(Box::<ImageX11>::new(ImageX11 {
+                image: self.image.unwrap(),
+            }))
         } else {
-            Box::<ImageX11>::new(ImageX11 { image: None })
+            Err(())
         }
     }
 
