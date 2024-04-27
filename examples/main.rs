@@ -1,5 +1,5 @@
 use std::env::temp_dir;
-
+use std::time::{Instant};
 
 fn main() {
     use screen_capture::util::{WriteSupport, read_ppm};
@@ -9,7 +9,13 @@ fn main() {
     let res = grabber.resolution();
 
     println!("Capture reports resolution of: {:?}", res);
-    grabber.prepare_capture(0, 1920, 0, res.width - 1920, res.height);
+    if res.width > 1920 {
+        // Use my right monitor...
+        grabber.prepare_capture(0, 1920, 0, res.width - 1920, res.height);
+    } else {
+        // use left monitor only.
+        grabber.prepare_capture(0, 0, 0, res.width, res.height);
+    }
 
     let mut res = grabber.capture_image();
     while !res {
@@ -30,11 +36,15 @@ fn main() {
         .unwrap();
 
     {
-        // let buff = image::DynamicImage::ImageRgba8(img.to_image()).into_rgb8();
-        // println!("buf: {:?}", &buff.as_raw()[0..20]);
-        // buff.save("/tmp/grab.png").unwrap();
-    }
-    // panic!();
+        use image::GenericImageView;
+        let img_sub = img.view(0,0, img.width(), img.height());
+        let start = Instant::now();
+        let buff = img_sub.to_image();
+        let duration = start.elapsed();
+        println!("Time to go to buffer: {:?}", duration);
+        println!("buf: {:?}", &buff.as_raw()[0..20]);
+        buff.save("/tmp/grab.png").unwrap();
+    } // 15ms-20ms'ish for 1080p.
 
     println!("Capture done writing");
 
@@ -59,11 +69,11 @@ fn main() {
 
     println!("Cloning image.");
 
-    use std::time::{Instant};
 
     let start = Instant::now();
     let cloned_img = img.clone();
     let duration = start.elapsed();
+    println!("Time elapsed in expensive_function() is: {:?}", duration);
 
     cloned_img.write_ppm(
         temp_dir()
@@ -74,7 +84,6 @@ fn main() {
     .unwrap();
 
 
-    println!("Time elapsed in expensive_function() is: {:?}", duration);
     {
         // let buff = cloned_img.clone().to_image();
         // buff.save("/tmp/cloned_to_image.png").unwrap();

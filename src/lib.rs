@@ -4,6 +4,7 @@
 pub mod raster_image;
 pub mod util;
 mod image_support;
+pub use image_support::*;
 
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
