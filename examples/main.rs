@@ -21,7 +21,10 @@ fn main() {
     std::thread::sleep(std::time::Duration::from_millis(1000));
 
 
+    let start = Instant::now();
     let mut res = grabber.capture_image();
+    let duration = start.elapsed();
+    println!("Capture time : {:?}", duration);
     while !res {
         res = grabber.capture_image();
     }

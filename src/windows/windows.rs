@@ -474,7 +474,9 @@ impl Capture for CaptureWin {
         return res.is_ok();
     }
     fn image(&mut self) -> std::result::Result<Box<dyn ImageBGR>, ()> {
-        Ok(Box::<ImageWin>::new(CaptureWin::image(self).map_err(|_| ())?))
+        Ok(Box::<ImageWin>::new(
+            CaptureWin::image(self).map_err(|_| ())?,
+        ))
     }
 
     fn resolution(&mut self) -> Resolution {
