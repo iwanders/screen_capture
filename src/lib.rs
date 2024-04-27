@@ -3,6 +3,7 @@
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
 pub mod raster_image;
 pub mod util;
+mod image_support;
 
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
@@ -57,8 +58,9 @@ pub trait ImageBGR {
 
     /// Returns the raw data buffer behind this image.
     fn data(&self) -> &[BGR];
-
 }
+
+
 
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn ImageBGR> {
