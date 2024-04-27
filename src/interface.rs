@@ -16,6 +16,7 @@ pub struct Resolution {
     pub height: u32,
 }
 
+
 /// Trait for something that represents an image.
 pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
     /// Returns the raw data buffer behind this image.
@@ -92,26 +93,30 @@ pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
         Ok(())
     }
 
-    fn into_image(self) -> image::RgbaImage;
+    fn to_image(&self) -> image::RgbaImage;
 }
 
 impl Image for image::RgbaImage {
     fn get_data(&self) -> Option<&[u8]> {
         Some(self.as_raw())
     }
-    fn into_image(self) -> image::RgbaImage {
-        self
+    fn to_image(&self) -> image::RgbaImage {
+        self.clone()
     }
 }
 
-// Implementation for cloning a boxed image, this always makes a true copy to a raster image.
+/// Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn Image> {
     fn clone(&self) -> Self {
         let data = self.get_data().expect("must have data to clone");
         let (w,h) = self.dimensions();
-        Box::new(image::RgbaImage::from_raw(w,h, data.to_vec()).expect("must have correct dimensions"))
+        let img = image::RgbaImage::from_raw(w, h, data.to_vec()).expect("must have correct dimensions"); 
+        // img.save("/tmp/cloned.png");
+        Box::new(img)
     }
 }
+
+
 
 /// Trait to which the desktop frame grabbers adhere.
 pub trait Capture {

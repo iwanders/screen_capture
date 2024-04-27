@@ -20,11 +20,19 @@ fn main() {
     println!("Capture writing to temp {:?}", temp_dir());
     img.write_ppm(
         temp_dir()
-            .join("foo.ppm")
+            .join("grab.ppm")
             .to_str()
             .expect("path must be ok"),
     )
     .unwrap();
+    img.write_bmp(temp_dir().join("grab.bmp").to_str().expect("path must be ok"))
+        .unwrap();
+    {
+        let buff = image::DynamicImage::ImageRgba8(img.to_image()).into_rgb8();
+        println!("buf: {:?}", &buff.as_raw()[0..20]);
+        buff.save("/tmp/grab.png").unwrap();
+    }
+    panic!();
 
     println!("Capture done writing");
 
@@ -33,31 +41,46 @@ fn main() {
         panic!("image didn't provide any data");
     }
 
-    let z = screen_capture::read_ppm(
+    let read_ppm = screen_capture::read_ppm(
         temp_dir()
-            .join("foo.ppm")
+            .join("grab.ppm")
             .to_str()
             .expect("path must be ok"),
     )
     .expect("must be good");
-    z.write_ppm(
+    read_ppm.write_ppm(
         temp_dir()
-            .join("bar.ppm")
+            .join("write_read_ppm.ppm")
             .to_str()
             .expect("path must be ok"),
     )
     .unwrap();
+
 
     println!("Cloning image.");
 
     use std::time::{Instant};
 
     let start = Instant::now();
-    let z = img.clone();
+    let cloned_img = img.clone();
     let duration = start.elapsed();
-    println!("Time elapsed in expensive_function() is: {:?}", duration);
 
-    let cloned_buffer = z.get_data().expect("expect a data buffer to be present");
+    cloned_img.write_ppm(
+        temp_dir()
+            .join("cloned_img.ppm")
+            .to_str()
+            .expect("path must be ok"),
+    )
+    .unwrap();
+
+
+    println!("Time elapsed in expensive_function() is: {:?}", duration);
+    {
+        let buff = cloned_img.clone().to_image();
+        buff.save("/tmp/cloned_to_image.png").unwrap();
+    }
+
+    let cloned_buffer = cloned_img.get_data().expect("expect a data buffer to be present");
     let orig_buffer = img.get_data().expect("expect a data buffer to be present");
     if cloned_buffer != orig_buffer {
         println!("{:?}\n{:?}", &cloned_buffer[0..20], &orig_buffer[0..20]);
@@ -67,9 +90,9 @@ fn main() {
     }
 
     println!("Capture writing to temp.");
-    z.write_ppm(temp_dir().join("z.ppm").to_str().expect("path must be ok"))
+    cloned_img.write_ppm(temp_dir().join("cloned_img_write_ppm.ppm").to_str().expect("path must be ok"))
         .unwrap();
-    z.write_bmp(temp_dir().join("z.bmp").to_str().expect("path must be ok"))
+    cloned_img.write_bmp(temp_dir().join("cloned_img_write_bmp.bmp").to_str().expect("path must be ok"))
         .unwrap();
     println!("Capture done writing");
     println!("First pixel: {:#?}", img.get_pixel(0, 0));

@@ -68,8 +68,13 @@ impl Image for ImageX11 {
             Some(std::slice::from_raw_parts(data, len))
         }
     }
-    fn into_image(self) -> image::RgbaImage {
+
+    fn to_image(&self) -> image::RgbaImage {
         let data = self.get_data().expect("must have data to clone");
+        println!("to image: {}", data.len());
+        println!("to self.get_width(): {}", self.get_width());
+        println!("to self.get_height(): {}", self.get_height());
+        println!("to self.zz(): {:?}", &data[0..24]);
         image::RgbaImage::from_raw(self.get_width(), self.get_height(), data.to_vec()).expect("must have correct dimensions")
     }
 }
