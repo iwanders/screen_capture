@@ -156,5 +156,13 @@ impl WriteSupport for dyn ImageBGR {
     fn write_bmp(&self, filename: &str) -> std::io::Result<()>{
         write_bmp(self, filename)
     }
+}
 
+impl WriteSupport for crate::raster_image::RasterImageBGR {
+    fn write_ppm(&self, filename: &str) -> std::io::Result<()>{
+        write_ppm(self, filename)
+    }
+    fn write_bmp(&self, filename: &str) -> std::io::Result<()>{
+        write_bmp(self, filename)
+    }
 }

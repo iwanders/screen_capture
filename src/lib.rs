@@ -59,6 +59,9 @@ pub trait ImageBGR {
 
     /// Returns the raw data buffer behind this image.
     fn data(&self) -> &[BGR];
+
+    // fn to_rgba(&self) -> image::RgbaImage {
+    // }
 }
 
 

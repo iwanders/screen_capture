@@ -145,6 +145,7 @@ impl ImageBGR for RasterImageBGR {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::util::*;
     use std::env::temp_dir;
 
     #[test]
@@ -159,8 +160,6 @@ pub mod tests {
         )
         .unwrap();
 
-        let v = img.data();
-        assert!(v.is_some());
         println!("rgb sizeof: {}", std::mem::size_of::<BGR>());
     }
 }
