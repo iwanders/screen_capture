@@ -60,7 +60,7 @@ pub trait ImageBGR {
     /// Returns the raw data buffer behind this image.
     fn data(&self) -> &[BGR];
 
-    /// This is a direct memcpy, but results in an incorrect image.
+    /// This is a direct memcpy, but results in blue and red swapped, and full translucency.
     fn to_rgba_false(&self) -> image::RgbaImage {
         let data = self.data();
         let data_u8 = unsafe {
@@ -73,6 +73,17 @@ pub trait ImageBGR {
             std::slice::from_raw_parts(data_u8_ptr, len)
         };
         image::RgbaImage::from_raw(self.width(), self.height(), data_u8.to_vec()).expect("must have correct dimensions")
+    }
+    fn to_rgba(&self) -> image::RgbaImage {
+        let data = self.data();
+        let mut new_data = Vec::with_capacity((self.width() * self.height() * 4) as usize);
+        for i in 0..(self.width() * self.height()) as usize {
+            new_data.push(data[i].r);
+            new_data.push(data[i].g);
+            new_data.push(data[i].b);
+            new_data.push(255);
+        }
+        image::RgbaImage::from_raw(self.width(), self.height(), new_data).expect("must have correct dimensions")
     }
 }
 

@@ -59,6 +59,18 @@ fn main() {
         img.save("/tmp/img_false.png").unwrap();
     } // 15ms-20ms'ish for 1080p.
 
+
+    {
+        use image::GenericImageView;
+        let start = Instant::now();
+        let img_rgba = img.to_rgba();
+        let duration = start.elapsed();
+        println!("Time via to_rgba: {:?}", duration);
+        println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
+        img_rgba.save("/tmp/img_rgba.png").unwrap();
+    } // 15ms-20ms'ish for 1080p.
+
+
     println!("Capture done writing");
 
     let read_ppm = read_ppm(
