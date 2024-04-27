@@ -1,12 +1,57 @@
 //! Defines traits used by the desktop_frame crate.
+use crate::raster_image::RasterImage;
+
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 #[repr(C)]
 #[repr(align(4))]
 /// Struct to represent a single pixel.
-pub(crate) struct RGB {
+pub struct RGB {
     pub b: u8,
     pub g: u8,
     pub r: u8,
+}
+
+impl RGB {
+    pub fn from_i32(v: i32) -> Self {
+        // Checked godbolt, this evaporates to a single 'mov' and 'and' instruction.
+        RGB {
+            r: ((v >> 16) & 0xFF) as u8,
+            g: ((v >> 8) & 0xFF) as u8,
+            b: (v & 0xFF) as u8,
+        }
+    }
+
+    pub fn black() -> RGB {
+        RGB { r: 0, g: 0, b: 0 }
+    }
+    pub fn yellow() -> RGB {
+        RGB {
+            r: 255,
+            g: 255,
+            b: 0,
+        }
+    }
+    pub fn cyan() -> RGB {
+        RGB {
+            r: 0,
+            g: 255,
+            b: 255,
+        }
+    }
+    pub fn magenta() -> RGB {
+        RGB {
+            r: 255,
+            g: 0,
+            b: 255,
+        }
+    }
+    pub fn white() -> RGB {
+        RGB {
+            r: 255,
+            g: 255,
+            b: 255,
+        }
+    }
 }
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
@@ -16,11 +61,19 @@ pub struct Resolution {
     pub height: u32,
 }
 
-
 /// Trait for something that represents an image.
-pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
+pub trait Image {
+    /// Returns the width of the image.
+    fn get_width(&self) -> u32;
+
+    /// Returns the height of the image.
+    fn get_height(&self) -> u32;
+
+    /// Returns a specific pixel's value. The x must be less then width, y less than height.
+    fn get_pixel(&self, x: u32, y: u32) -> RGB;
+
     /// Returns the raw data buffer behind this image.
-    fn get_data(&self) -> Option<&[u8]> {
+    fn get_data(&self) -> Option<&[RGB]> {
         None
     }
 
@@ -30,8 +83,8 @@ pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
         use std::io::prelude::*;
         let mut file = File::create(filename)?;
         file.write_all(b"P3\n")?;
-        let width = self.width();
-        let height = self.height();
+        let width = self.get_width();
+        let height = self.get_height();
         file.write_all(format!("{} {}\n", width, height).as_ref())?;
         file.write_all(b"255\n")?;
         for y in 0..height {
@@ -40,7 +93,7 @@ pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
             for x in 0..width {
                 let color = self.get_pixel(x, y);
                 use std::fmt::Write;
-                write!(v, "{} {} {} ", color.0[0], color.0[1], color.0[2]).unwrap();
+                write!(v, "{} {} {} ", color.r, color.g, color.b).unwrap();
             }
             file.write_all(v.as_ref())?;
             file.write_all(b"\n")?;
@@ -54,8 +107,8 @@ pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
         use std::fs::File;
         use std::io::prelude::*;
         let mut file = File::create(filename)?;
-        let width = self.width();
-        let height = self.height();
+        let width = self.get_width();
+        let height = self.get_height();
         let pad = (((width as i32) * -3) & 3) as u32;
         let total = 54 + 3 * width * height + pad * height;
         let head: [u32; 7] = [total, 0, 54, 40, width, height, (24 << 16) | 1];
@@ -83,40 +136,23 @@ pub trait Image : image::GenericImageView<Pixel = image::Rgba::<u8>> {
             // populate the row
             for x in 0..width {
                 let color = self.get_pixel(x, height - y - 1);
-                row[(x * 3) as usize] = color.0[2];
-                row[(x * 3 + 1) as usize] = color.0[1];
-                row[(x * 3 + 2) as usize] = color.0[0];
+                row[(x * 3) as usize] = color.b;
+                row[(x * 3 + 1) as usize] = color.g;
+                row[(x * 3 + 2) as usize] = color.r;
             }
             // And write the row.
             file.write_all(&row)?;
         }
         Ok(())
     }
-
-    fn to_image(&self) -> image::RgbaImage;
 }
 
-impl Image for image::RgbaImage {
-    fn get_data(&self) -> Option<&[u8]> {
-        Some(self.as_raw())
-    }
-    fn to_image(&self) -> image::RgbaImage {
-        self.clone()
-    }
-}
-
-/// Implementation for cloning a boxed image, this always makes a true copy to a raster image.
+// Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn Image> {
     fn clone(&self) -> Self {
-        let data = self.get_data().expect("must have data to clone");
-        let (w,h) = self.dimensions();
-        let img = image::RgbaImage::from_raw(w, h, data.to_vec()).expect("must have correct dimensions"); 
-        // img.save("/tmp/cloned.png");
-        Box::new(img)
+        return Box::new(RasterImage::new(self.as_ref()));
     }
 }
-
-
 
 /// Trait to which the desktop frame grabbers adhere.
 pub trait Capture {

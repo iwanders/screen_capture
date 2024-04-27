@@ -2,8 +2,10 @@
 //!  - Using X11's [Xshm](https://en.wikipedia.org/wiki/MIT-SHM) extension for efficient retrieval on Linux.
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
 pub mod interface;
+pub mod raster_image;
+pub mod tracked_image;
 
-pub use interface::{Capture, Image, Resolution};
+pub use interface::{Capture, Image, Resolution, RGB};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
@@ -55,15 +57,14 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
         return Err(make_error("Scaling not supported, only 255 supported"));
     }
 
-    // let mut img: Vec<Vec<RGB>> = Default::default();
-    // img.resize(height as usize, vec![]);
-    let mut img = image::RgbaImage::new(width, height);
+    let mut img: Vec<Vec<RGB>> = Default::default();
+    img.resize(height as usize, vec![]);
 
     // Now, we iterate over the remaining lines, each holds a row for the image.
     for (li, l) in lines.enumerate() {
         let l = l?;
         // Allocate this row.
-        // img[li].resize(width as usize, Default::default());
+        img[li].resize(width as usize, Default::default());
         // Finally, parse the row.
         // https://doc.rust-lang.org/rust-by-example/error/iter_result.html
         let split = l.trim().split(' ').map(|x| str::parse::<u32>(x));
@@ -81,10 +82,9 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn Image>, Box<dyn std::error::Er
             let r = u8::try_from(numbers[i * 3])?;
             let g = u8::try_from(numbers[i * 3 + 1])?;
             let b = u8::try_from(numbers[i * 3 + 2])?;
-            img.put_pixel(i as u32, li as u32, image::Rgba([r, g, b, 0]));
+            img[li][i] = RGB { r, g, b };
         }
     }
 
-    // todo!();
-    Ok(Box::new(img))
+    Ok(Box::new(raster_image::RasterImage::from_2d_vec(&img)))
 }
