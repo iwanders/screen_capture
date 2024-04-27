@@ -18,6 +18,9 @@ fn main() {
         grabber.prepare_capture(0, 0, 0, res.width, res.height);
     }
 
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+
+
     let mut res = grabber.capture_image();
     while !res {
         res = grabber.capture_image();
@@ -47,7 +50,10 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via to_rgba: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
-        img_rgba.save("/tmp/img_rgba.png").unwrap();
+        img_rgba.save( temp_dir()
+            .join("img_to_rgba.png")
+            .to_str()
+            .expect("path must be ok")).unwrap();
     } // 5.5ms'ish for 1080p.
 
 
@@ -58,7 +64,10 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via to_rgba_simd: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
-        img_rgba.save("/tmp/to_rgba_simd.png").unwrap();
+        img_rgba.save(temp_dir()
+            .join("img_to_rgba_simd.png")
+            .to_str()
+            .expect("path must be ok")).unwrap();
     } // 4.5ms'ish for 1080p.
 
 
@@ -71,7 +80,10 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via sub and to_image: {:?}", duration);
         println!("buf: {:?}", &buff.as_raw()[0..20]);
-        buff.save("/tmp/grab.png").unwrap();
+        buff.save(temp_dir()
+            .join("grab.png")
+            .to_str()
+            .expect("path must be ok")).unwrap();
     } // 15ms-20ms'ish for 1080p.
 
     {
@@ -84,7 +96,10 @@ fn main() {
         let duration = start.elapsed();
         println!("Time for false color image to rgb8: {:?}", duration);
         println!("buf: {:?}", &img.as_raw()[0..20]);
-        img.save("/tmp/img_false.png").unwrap();
+        img.save(temp_dir()
+            .join("img_false.png")
+            .to_str()
+            .expect("path must be ok")).unwrap();
     } // 5ms + 5ms 'ish for 1080p.
 
 
@@ -95,7 +110,10 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via to_rgb: {:?}", duration);
         println!("buf: {:?}", &img_rgb.as_raw()[0..20]);
-        img_rgb.save("/tmp/img_rgb.png").unwrap();
+        img_rgb.save(temp_dir()
+            .join("img_to_rgb.png")
+            .to_str()
+            .expect("path must be ok")).unwrap();
     } // 114ms'ish for 1080p.
 
 

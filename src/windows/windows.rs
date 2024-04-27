@@ -10,7 +10,7 @@
 //! Whenever failure happens, we try to reinstantiate the duplicator, this can happen when the
 //! resolution changes, or when we don't have permissions to do a screen capture.
 
-use crate::interface::*;
+use crate::*;
 use windows;
 
 use windows::{
@@ -68,7 +68,7 @@ impl ImageWin {
     }
 }
 
-impl Image for ImageWin {
+impl ImageBGR for ImageWin {
     fn width(&self) -> u32 {
         self.width
     }
@@ -107,7 +107,7 @@ impl Image for ImageWin {
         }
     }
 
-    fn data(&self) -> Option<&[BGR]> {
+    fn data(&self) -> &[BGR] {
         // Should always have an image.
         unsafe {
             let data =
@@ -118,7 +118,7 @@ impl Image for ImageWin {
             assert!(stride == 4);
             assert!(self.mapped.RowPitch / stride == self.width);
             let len = width * height;
-            Some(std::slice::from_raw_parts(data, len))
+            std::slice::from_raw_parts(data, len)
         }
     }
 }
@@ -473,8 +473,8 @@ impl Capture for CaptureWin {
         let res = CaptureWin::capture(self);
         return res.is_ok();
     }
-    fn image(&mut self) -> Box<dyn Image> {
-        Box::<ImageWin>::new(CaptureWin::image(self).expect("Should succeed"))
+    fn image(&mut self) -> std::result::Result<Box<dyn ImageBGR>, ()> {
+        Ok(Box::<ImageWin>::new(CaptureWin::image(self).map_err(|_| ())?))
     }
 
     fn resolution(&mut self) -> Resolution {
