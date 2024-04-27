@@ -11,7 +11,7 @@ pub use image_support::*;
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
 mod backend;
 
-/// Get a new instance of the desktop frame grabber for this platform.
+/// Get a new instance of the screen grabber for this platform.
 pub fn capture() -> Box<dyn Capture> {
     backend::capture()
 }
@@ -21,7 +21,7 @@ use crate::raster_image::RasterImageBGR;
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 #[repr(C)]
 #[repr(align(4))]
-/// Struct to represent a single pixel.
+/// Struct to represent a single pixel in BGR(A)
 pub struct BGR {
     pub b: u8,
     pub g: u8,
@@ -46,7 +46,11 @@ pub struct Resolution {
     pub height: u32,
 }
 
-/// Trait for something that represents an image.
+/// Trait for something that represents an BGR image.
+///
+/// Both windows and linux use BGR(A), using 4 bytes per pixel, A is zero
+/// on both platforms, which makes it completely translucent if converted
+/// to an RGBA image.
 pub trait ImageBGR {
     /// Returns the width of the image.
     fn width(&self) -> u32;
@@ -75,31 +79,53 @@ pub trait ImageBGR {
         image::RgbaImage::from_raw(self.width(), self.height(), data_u8.to_vec()).expect("must have correct dimensions")
     }
 
+    /// Convert the the image to rgba using a for loop.
     fn to_rgba(&self) -> image::RgbaImage {
         let data = self.data();
-        let mut new_data = Vec::with_capacity((self.width() * self.height() * 4) as usize);
+        let total_len = (self.width() * self.height() * 4) as usize;
+        let mut new_data = Vec::with_capacity(total_len);
+        // This minor application of unsafe to create an uninitialised vector
+        // speeds things up tremendously.
+        unsafe {new_data.set_len(total_len);};
         for i in 0..(self.width() * self.height()) as usize {
-            new_data.push(data[i].r);
-            new_data.push(data[i].g);
-            new_data.push(data[i].b);
-            new_data.push(255);
+            let out_pos = i * 4;
+            new_data[out_pos + 0] = data[i].r;
+            new_data[out_pos + 1] = data[i].g;
+            new_data[out_pos + 2] = data[i].b;
+            new_data[out_pos + 3] = 255;
         }
         image::RgbaImage::from_raw(self.width(), self.height(), new_data).expect("must have correct dimensions")
     }
 
-    // If we have avx2, dispatch into the avx2 routine.
+    /// Convert the image to opaque rgba, using the most efficient conersion available.
+    fn to_rgba_auto(&self) -> image::RgbaImage {
+        const HAVE_AVX2 : bool = cfg!(all(any(target_arch = "x86_64"), target_feature = "avx2"));
+        if HAVE_AVX2 {
+            self.to_rgba_simd()
+        } else {
+            self.to_rgba()
+        }
+    }
+
+    /// An AVX2 SIMD implementation of swapping the color space in 32 byte blocks.
     #[cfg(any(doc, all(any(target_arch = "x86_64"), target_feature = "avx2")))]
     fn to_rgba_simd(&self) -> image::RgbaImage {
         return avx2_simd_bgr_to_rgba(self.width(), self.height(), self.data());
     }
 
+    /// Convert the image to rgb.
     fn to_rgb(&self) -> image::RgbImage {
         let data = self.data();
-        let mut new_data = Vec::with_capacity((self.width() * self.height() * 3) as usize);
+        let total_len = (self.width() * self.height() * 3) as usize;
+        let mut new_data = Vec::with_capacity(total_len);
+        // This minor application of unsafe to create an uninitialised vector
+        // speeds things up tremendously.
+        unsafe {new_data.set_len(total_len);};
         for i in 0..(self.width() * self.height()) as usize {
-            new_data.push(data[i].r);
-            new_data.push(data[i].g);
-            new_data.push(data[i].b);
+            let out_pos = i * 3;
+            new_data[out_pos + 0] = data[i].r;
+            new_data[out_pos + 1] = data[i].g;
+            new_data[out_pos + 2] = data[i].b;
         }
         image::RgbImage::from_raw(self.width(), self.height(), new_data).expect("must have correct dimensions")
     }
