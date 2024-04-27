@@ -14,10 +14,10 @@ impl RasterImageBGR {
         (y * self.width + x) as usize
     }
 
-    fn data_rgb(&self, x: u32, y: u32) -> &BGR {
+    pub fn data_rgb(&self, x: u32, y: u32) -> &BGR {
         &self.data[self.index(x, y)]
     }
-    fn data_rgb_mut(&mut self, x: u32, y: u32) -> &mut BGR {
+    pub fn data_rgb_mut(&mut self, x: u32, y: u32) -> &mut BGR {
         let index = self.index(x, y);
         &mut self.data[index]
     }

@@ -1,5 +1,6 @@
 use std::env::temp_dir;
 use std::time::{Instant};
+use image::GenericImageView;
 
 fn main() {
     use screen_capture::util::{WriteSupport, read_ppm};
@@ -36,7 +37,6 @@ fn main() {
         .unwrap();
 
     {
-        use image::GenericImageView;
         let img_sub = img.view(0,0, img.width(), img.height());
         let start = Instant::now();
         let buff = img_sub.to_image();
@@ -57,18 +57,39 @@ fn main() {
         println!("Time for false color image to rgb8: {:?}", duration);
         println!("buf: {:?}", &img.as_raw()[0..20]);
         img.save("/tmp/img_false.png").unwrap();
-    } // 15ms-20ms'ish for 1080p.
+    } // 5ms + 5ms 'ish for 1080p.
 
 
     {
-        use image::GenericImageView;
         let start = Instant::now();
         let img_rgba = img.to_rgba();
         let duration = start.elapsed();
         println!("Time via to_rgba: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
         img_rgba.save("/tmp/img_rgba.png").unwrap();
-    } // 15ms-20ms'ish for 1080p.
+    } // 19ms'ish for 1080p.
+
+
+
+
+    {
+        let start = Instant::now();
+        let img_rgb = img.to_rgb();
+        let duration = start.elapsed();
+        println!("Time via to_rgb: {:?}", duration);
+        println!("buf: {:?}", &img_rgb.as_raw()[0..20]);
+        img_rgb.save("/tmp/img_rgb.png").unwrap();
+    } // 114ms'ish for 1080p.
+
+
+    {
+        let start = Instant::now();
+        let img_rgba = img.to_rgba_simd();
+        let duration = start.elapsed();
+        println!("Time via to_rgba_simd: {:?}", duration);
+        println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
+        img_rgba.save("/tmp/to_rgba_simd.png").unwrap();
+    } // 1.3ms'ish for 1080p.
 
 
     println!("Capture done writing");
