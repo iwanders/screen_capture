@@ -2,6 +2,7 @@ use std::env::temp_dir;
 
 
 fn main() {
+    use screen_capture::util::{WriteSupport, read_ppm};
 
     let mut grabber = screen_capture::capture();
 
@@ -33,14 +34,14 @@ fn main() {
         // println!("buf: {:?}", &buff.as_raw()[0..20]);
         // buff.save("/tmp/grab.png").unwrap();
     }
-    panic!();
+    // panic!();
 
     println!("Capture done writing");
 
     let buffer = img.data();
 
 
-    let read_ppm = screen_capture::read_ppm(
+    let read_ppm = read_ppm(
         temp_dir()
             .join("grab.ppm")
             .to_str()

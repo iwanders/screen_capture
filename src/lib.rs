@@ -1,10 +1,9 @@
 //! A crate to access the current image shown on the monitor.
 //!  - Using X11's [Xshm](https://en.wikipedia.org/wiki/MIT-SHM) extension for efficient retrieval on Linux.
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
-pub mod interface;
 pub mod raster_image;
+pub mod util;
 
-pub use interface::{Capture, ImageBGR, Resolution, BGR};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
@@ -15,75 +14,125 @@ pub fn capture() -> Box<dyn Capture> {
     backend::capture()
 }
 
-/// Reads a ppm image from disk. (or rather ppms written by [`Image::write_ppm`]).
-pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error::Error>> {
-    use std::fs::File;
-    let file = File::open(filename)?;
-    use std::io::{BufRead, BufReader};
-    let br = BufReader::new(file);
-    let mut lines = br.lines();
-    let width: u32;
-    let height: u32;
-    fn make_error(v: &str) -> Box<dyn std::error::Error> {
-        Box::new(std::io::Error::new(std::io::ErrorKind::Other, v))
-    }
+use crate::raster_image::RasterImageBGR;
 
-    // First, read the type, this must be P3
-    let l = lines
-        .next()
-        .ok_or_else(|| make_error("Not enough lines"))??;
-    if l != "P3" {
-        return Err(make_error("Input format not supported."));
-    }
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[repr(C)]
+#[repr(align(4))]
+/// Struct to represent a single pixel.
+pub struct BGR {
+    pub b: u8,
+    pub g: u8,
+    pub r: u8,
+}
 
-    // This is where we get the resolution.
-    let l = lines
-        .next()
-        .ok_or_else(|| make_error("Not enough lines"))??;
-    let mut values = l.trim().split(' ').map(|x| str::parse::<u32>(x));
-    width = values
-        .next()
-        .ok_or_else(|| make_error("Could not parse width."))??;
-    height = values
-        .next()
-        .ok_or_else(|| make_error("Could not parse height."))??;
-
-    // And check the scaling.
-    let l = lines
-        .next()
-        .ok_or_else(|| make_error("Not enough lines"))??;
-    if l != "255" {
-        return Err(make_error("Scaling not supported, only 255 supported"));
-    }
-
-    let mut img: Vec<Vec<BGR>> = Default::default();
-    img.resize(height as usize, vec![]);
-
-    // Now, we iterate over the remaining lines, each holds a row for the image.
-    for (li, l) in lines.enumerate() {
-        let l = l?;
-        // Allocate this row.
-        img[li].resize(width as usize, Default::default());
-        // Finally, parse the row.
-        // https://doc.rust-lang.org/rust-by-example/error/iter_result.html
-        let split = l.trim().split(' ').map(|x| str::parse::<u32>(x));
-        let numbers: Result<Vec<_>, _> = split.collect();
-        let numbers = numbers?;
-        // Cool, now we have a bunch of numbers, verify the width.
-        if numbers.len() / 3 != width as usize {
-            return Err(make_error(
-                format!("Width is incorrect, got {}", numbers.len() / 3).as_str(),
-            ));
-        }
-
-        // Finally, we can convert the bytes.
-        for i in 0..width as usize {
-            let r = u8::try_from(numbers[i * 3])?;
-            let g = u8::try_from(numbers[i * 3 + 1])?;
-            let b = u8::try_from(numbers[i * 3 + 2])?;
-            img[li][i] = BGR { r, g, b };
+impl BGR {
+    pub fn from_i32(v: i32) -> Self {
+        // Checked godbolt, this evaporates to a single 'mov' and 'and' instruction.
+        BGR {
+            r: ((v >> 16) & 0xFF) as u8,
+            g: ((v >> 8) & 0xFF) as u8,
+            b: (v & 0xFF) as u8,
         }
     }
+}
 
-    Ok(Box::new(raster_image::RasterImageBGR::from_2d_vec(&img)))
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+/// Struct to represent the resolution.
+pub struct Resolution {
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Trait for something that represents an image.
+pub trait ImageBGR {
+    /// Returns the width of the image.
+    fn width(&self) -> u32;
+
+    /// Returns the height of the image.
+    fn height(&self) -> u32;
+
+    /// Returns a specific pixel's value. The x must be less then width, y less than height.
+    fn pixel(&self, x: u32, y: u32) -> BGR;
+
+    /// Returns the raw data buffer behind this image.
+    fn data(&self) -> &[BGR];
+
+}
+
+// Implementation for cloning a boxed image, this always makes a true copy to a raster image.
+impl Clone for Box<dyn ImageBGR> {
+    fn clone(&self) -> Self {
+        return Box::new(RasterImageBGR::new(self.as_ref()));
+    }
+}
+
+/// Trait to which the desktop frame grabbers adhere.
+pub trait Capture {
+    /// Capture the frame into an internal buffer, creating a 'snapshot'
+    fn capture_image(&mut self) -> bool;
+
+    /// Retrieve the image for access. By default this may be backed by the internal buffer
+    /// created by capture_image.
+    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ()>;
+
+    /// Retrieve the current full desktop resolution.
+    fn resolution(&mut self) -> Resolution;
+
+    /// Attempt to prepare capture for a subsection of the entire desktop.
+    /// This is implementation defined and not guaranteed to do anything. It MUST be called before
+    /// trying to capture an image, as setup may happen here.
+    fn prepare_capture(
+        &mut self,
+        display: u32,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> bool {
+        let _ = (display, x, y, width, height);
+        false
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rgb_order() {
+        // Both X11 and Windows use the following to convert from the bytes behind the pointer to
+        // the actual pixel values.
+        /*
+        let masked = as_integer & 0x00FFFFFF;
+        BGR {
+            r: ((masked >> 16) & 0xFF) as u8,
+            g: ((masked >> 8) & 0xFF) as u8,
+            b: (masked & 0xFF) as u8,
+        }*/
+        // Lets make the BGR struct follow that order.
+        let as_integer = 0x00112233;
+        let masked = as_integer & 0x00FFFFFF;
+        let p = BGR {
+            r: ((masked >> 16) & 0xFF) as u8,
+            g: ((masked >> 8) & 0xFF) as u8,
+            b: (masked & 0xFF) as u8,
+        };
+        assert_eq!(p.r, 0x11);
+        assert_eq!(p.g, 0x22);
+        assert_eq!(p.b, 0x33);
+
+        // So                 xxRRGGBB
+        // let as_integer = 0x00112233;
+
+        // now, we can make an integer, reinterpret cast the thing and check that.
+        unsafe {
+            let rgb_from_integer =
+                std::mem::transmute::<*const i32, *const BGR>(&as_integer as *const i32);
+            assert_eq!((*rgb_from_integer).r, 0x11);
+            assert_eq!((*rgb_from_integer).g, 0x22);
+            assert_eq!((*rgb_from_integer).b, 0x33);
+        }
+        assert_eq!(std::mem::size_of::<BGR>(), std::mem::size_of::<u32>());
+    }
 }

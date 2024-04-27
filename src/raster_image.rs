@@ -1,5 +1,5 @@
 //! Raster image, an image owning all pixels that are in it.
-use crate::interface::*;
+use crate::*;
 
 /// Raster image, an image owning all pixels that are in it.
 #[derive(Default)]

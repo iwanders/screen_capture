@@ -1,4 +1,4 @@
-use crate::interface::*;
+use crate::*;
 mod X11;
 use X11::*;
 
