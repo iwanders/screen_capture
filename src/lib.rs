@@ -229,28 +229,30 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
 
         let alpha_mask = _mm256_set1_epi32(i32::from_ne_bytes(0xFF000000u32.to_ne_bytes()));
         trace!(" {}", pl(&alpha_mask));
-        // Okay, now we need a shuffle.
-        // on zero'th byte, we want the 0 index, second byte, index 4, third; 8th...
-        // i64::from_ne_bytes(0x808080800c080400u64.to_ne_bytes()),
+        // Okay, now we need a shuffle to swap the color channels.
         let mask = _mm256_set_epi64x(
-            i64::from_ne_bytes(0x0f_0c_0d_0e__00_08_09_0a_u64.to_ne_bytes()),
-            i64::from_ne_bytes(0x07_04_05_06__00_00_01_02_u64.to_ne_bytes()),
-            i64::from_ne_bytes(0x0f_0c_0d_0e__00_08_09_0a_u64.to_ne_bytes()),
-            i64::from_ne_bytes(0x07_04_05_06__00_00_01_02_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_0c_0d_0e__00_08_09_0a_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_04_05_06__00_00_01_02_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_0c_0d_0e__00_08_09_0a_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_04_05_06__00_00_01_02_u64.to_ne_bytes()),
         );
         // Handle the full chunks.
         for step in 0..chunks {
             let pos = STEP_SIZE * step;
             trace!("step: {step}, pos {pos}");
+            // Load the data
             let v = _mm256_loadu_si256(std::mem::transmute::<_, *const __m256i>(data_ptr.offset(pos as isize)));
             trace!(" {}", pl(&v));
+
             // Shuffle, per 128bit lane.
             let shuffled = _mm256_shuffle_epi8(v, mask);
             trace!(" {}", pl(&shuffled));
-            // And unload it back into the output vector.
+
+            // or that with the alpha mask to make it opaque.
             let combined = _mm256_or_si256(shuffled, alpha_mask);
-            // let combined = shuffled;
             trace!(" {}", pl(&combined));
+
+            // Write back the finished data.
             _mm256_storeu_si256(
                 std::mem::transmute::<_, *mut __m256i>(output_ptr.offset(pos as isize)),
                 combined,
@@ -258,7 +260,7 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
             
         }
 
-        // Clean up any remaining pixels manually.
+        // Handle any remaining pixels manually.
         for p in (chunks * STEP_SIZE..total_len).step_by(4)
         {
             trace!("p: {p}");
