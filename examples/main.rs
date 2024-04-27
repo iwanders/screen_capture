@@ -41,15 +41,25 @@ fn main() {
         let start = Instant::now();
         let buff = img_sub.to_image();
         let duration = start.elapsed();
-        println!("Time to go to buffer: {:?}", duration);
+        println!("Time via sub and to_image: {:?}", duration);
         println!("buf: {:?}", &buff.as_raw()[0..20]);
         buff.save("/tmp/grab.png").unwrap();
     } // 15ms-20ms'ish for 1080p.
 
+    {
+        let start = Instant::now();
+        let img_false = img.to_rgba_false();
+        let duration = start.elapsed();
+        println!("Time for false color image: {:?}", duration);
+        let start = Instant::now();
+        let img = image::DynamicImage::ImageRgba8(img_false).to_rgb8();
+        let duration = start.elapsed();
+        println!("Time for false color image to rgb8: {:?}", duration);
+        println!("buf: {:?}", &img.as_raw()[0..20]);
+        img.save("/tmp/img_false.png").unwrap();
+    } // 15ms-20ms'ish for 1080p.
+
     println!("Capture done writing");
-
-    let buffer = img.data();
-
 
     let read_ppm = read_ppm(
         temp_dir()

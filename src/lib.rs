@@ -60,8 +60,20 @@ pub trait ImageBGR {
     /// Returns the raw data buffer behind this image.
     fn data(&self) -> &[BGR];
 
-    // fn to_rgba(&self) -> image::RgbaImage {
-    // }
+    /// This is a direct memcpy, but results in an incorrect image.
+    fn to_rgba_false(&self) -> image::RgbaImage {
+        let data = self.data();
+        let data_u8 = unsafe {
+            let width = self.width() as usize;
+            let height = self.height() as usize;
+            assert_eq!(data.len(), width * height);
+            assert_eq!(std::mem::size_of::<BGR>(), std::mem::size_of::<u8>() * 4);
+            let data_u8_ptr = std::mem::transmute::<*const BGR, *const u8>(data.as_ptr());
+            let len = width * height * 4;
+            std::slice::from_raw_parts(data_u8_ptr, len)
+        };
+        image::RgbaImage::from_raw(self.width(), self.height(), data_u8.to_vec()).expect("must have correct dimensions")
+    }
 }
 
 
