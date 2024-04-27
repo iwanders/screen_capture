@@ -1,3 +1,4 @@
+//! Various io helpers that don't rely on [`image`].
 use crate::raster_image;
 use crate::{ImageBGR, BGR};
 

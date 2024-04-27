@@ -26,7 +26,7 @@ fn main() {
     println!("Capture tried to capture image, succes? {}", res);
     let img = grabber.image().expect("grab image should succeed");
 
-    res = grabber.capture_image();
+    // res = grabber.capture_image();
 
     println!("Capture writing to temp {:?}", temp_dir());
     img.write_ppm(

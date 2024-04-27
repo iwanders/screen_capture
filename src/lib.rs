@@ -6,9 +6,12 @@
 //!  - Using X11's [Xshm](https://en.wikipedia.org/wiki/MIT-SHM) extension for efficient retrieval on Linux.
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
 //!
-//! Downside is that calling [`Capture::capture_image`] while the image still exists modifies the data underneath the previously handed out image. So a bit of
-//! care must be taken around how the captured image is used. When in doubt call [`ImageBGR::to_rgba`] immediately after [`Capture::capture_image`] and immediately
-//! drop the image, keeping only the owned [`image::RgbaImage`].
+//! Downside is that calling [`Capture::capture_image`] while the image still exists modifies the data underneath the previously handed out image. To ensure this
+//! doesn't happen, the previous images get 'poisoned' after a new call to [`Capture::capture_image`] is performed. Interacting with the old images in any way
+//! results in a panic. When in doubt call [`ImageBGR::to_rgba`] immediately after [`Capture::capture_image`] and immediately
+//! drop the image, keeping only the owned [`image::RgbaImage`] which one can keep around indefinitely as it owns the full content.
+//!
+//! Todo: An improvement would perhaps be to make [`Capture::capture_image`] return a reference to an image. And just panic if two calls to the capture happen.
 pub mod raster_image;
 pub mod util;
 
@@ -57,6 +60,9 @@ pub struct Resolution {
 /// Both windows and linux use BGR(A), using 4 bytes per pixel, A is zero
 /// on both platforms, which makes it completely translucent if converted
 /// to an RGBA image.
+///
+/// In general, you'll want to call the [`ImageBGR::to_rgba`] method to create a standard
+/// owned image you can keep around.
 pub trait ImageBGR {
     /// Returns the width of the image.
     fn width(&self) -> u32;
