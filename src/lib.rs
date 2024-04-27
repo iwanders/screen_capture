@@ -1,10 +1,16 @@
 //! A crate to access the current image shown on the monitor.
+//!
+//! The entire crate is written for efficiency, on both Linux and Windows it utilises shared
+//! memory functionality to avoid full copies:
+//!
 //!  - Using X11's [Xshm](https://en.wikipedia.org/wiki/MIT-SHM) extension for efficient retrieval on Linux.
 //!  - Using Windows' [Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api) for efficient retrieval on Windows.
+//!
+//! Downside is that calling [`Capture::capture_image`] while the image still exists modifies the data underneath the previously handed out image. So a bit of
+//! care must be taken around how the captured image is used. When in doubt call [`ImageBGR::to_rgba`] immediately after [`Capture::capture_image`] and immediately
+//! drop the image, keeping only the owned [`image::RgbaImage`].
 pub mod raster_image;
 pub mod util;
-mod image_support;
-pub use image_support::*;
 
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
@@ -64,7 +70,7 @@ pub trait ImageBGR {
     /// Returns the raw data buffer behind this image.
     fn data(&self) -> &[BGR];
 
-    /// This is a direct memcpy, but results in blue and red swapped, and full translucency.
+    /// False color RGBA conversion, this results in blue and red swapped, and full translucency.
     fn to_rgba_false(&self) -> image::RgbaImage {
         let data = self.data();
         let data_u8 = unsafe {
@@ -80,7 +86,7 @@ pub trait ImageBGR {
     }
 
     /// Convert the the image to rgba using a for loop.
-    fn to_rgba(&self) -> image::RgbaImage {
+    fn to_rgba_simple(&self) -> image::RgbaImage {
         let data = self.data();
         let total_len = (self.width() * self.height() * 4) as usize;
         let mut new_data = Vec::with_capacity(total_len);
@@ -97,19 +103,19 @@ pub trait ImageBGR {
         image::RgbaImage::from_raw(self.width(), self.height(), new_data).expect("must have correct dimensions")
     }
 
-    /// Convert the image to opaque rgba, using the most efficient conersion available.
-    fn to_rgba_auto(&self) -> image::RgbaImage {
+    /// Convert the image to opaque rgba, using the most efficient conversion function available.
+    fn to_rgba(&self) -> image::RgbaImage {
         const HAVE_AVX2 : bool = cfg!(all(any(target_arch = "x86_64"), target_feature = "avx2"));
         if HAVE_AVX2 {
-            self.to_rgba_simd()
+            self.to_rgba_avx2()
         } else {
-            self.to_rgba()
+            self.to_rgba_simple()
         }
     }
 
     /// An AVX2 SIMD implementation of swapping the color space in 32 byte blocks.
     #[cfg(any(doc, all(any(target_arch = "x86_64"), target_feature = "avx2")))]
-    fn to_rgba_simd(&self) -> image::RgbaImage {
+    fn to_rgba_avx2(&self) -> image::RgbaImage {
         return avx2_simd_bgr_to_rgba(self.width(), self.height(), self.data());
     }
 
@@ -131,6 +137,20 @@ pub trait ImageBGR {
     }
 }
 
+use image::{GenericImageView, Pixel, Rgba};
+
+
+impl GenericImageView for Box<dyn ImageBGR> {
+    type Pixel = Rgba<u8>;
+    fn dimensions(&self) -> (u32, u32) {
+        let img = &(**self);
+        (ImageBGR::width(img), ImageBGR::height(img))
+    }
+    fn get_pixel(&self, x: u32, y: u32) -> <Self as GenericImageView>::Pixel {
+        let bgr = self.pixel(x, y);
+        *Self::Pixel::from_slice(&[bgr.r, bgr.g, bgr.b, 255])
+    }
+}
 
 
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.

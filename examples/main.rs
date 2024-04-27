@@ -40,7 +40,7 @@ fn main() {
 
     {
         let start = Instant::now();
-        let img_rgba = img.to_rgba();
+        let img_rgba = img.to_rgba_simple();
         let duration = start.elapsed();
         println!("Time via to_rgba: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
@@ -51,7 +51,7 @@ fn main() {
 
     {
         let start = Instant::now();
-        let img_rgba = img.to_rgba_auto();
+        let img_rgba = img.to_rgba();
         let duration = start.elapsed();
         println!("Time via to_rgba_simd: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);

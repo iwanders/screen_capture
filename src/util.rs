@@ -1,7 +1,7 @@
 use crate::raster_image;
-use crate::{Capture, ImageBGR, Resolution, BGR};
+use crate::{ImageBGR, BGR};
 
-/// Reads a ppm image from disk. (or rather ppms written by [`Image::write_ppm`]).
+/// Reads a ppm image from disk. (or rather ppms written by [`write_ppm`]).
 pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error::Error>> {
     use std::fs::File;
     let file = File::open(filename)?;
@@ -77,7 +77,7 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
 
 
 /// Dump a ppm file to disk.
-fn write_ppm(img: &dyn ImageBGR, filename: &str) -> std::io::Result<()> {
+pub fn write_ppm(img: &dyn ImageBGR, filename: &str) -> std::io::Result<()> {
     use std::fs::File;
     use std::io::prelude::*;
     let mut file = File::create(filename)?;
@@ -101,7 +101,7 @@ fn write_ppm(img: &dyn ImageBGR, filename: &str) -> std::io::Result<()> {
 }
 
 /// Dump a bmp file to disk, mostly because windows can't open ppm.
-fn write_bmp(img: &dyn ImageBGR, filename: &str) -> std::io::Result<()> {
+pub fn write_bmp(img: &dyn ImageBGR, filename: &str) -> std::io::Result<()> {
     // Adopted from https://stackoverflow.com/a/62946358
     use std::fs::File;
     use std::io::prelude::*;
