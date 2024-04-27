@@ -80,16 +80,16 @@ pub struct Config {
 }
 
 /// Helper struct to use the capture object to grab according to configuration.
-pub struct CaptureGrabber {
+pub struct ConfiguredCapture {
     pub config: Config,
     pub grabber: Box<dyn Capture>,
     pub cached_resolution: Option<Resolution>,
 }
 
-impl CaptureGrabber {
+impl ConfiguredCapture {
     /// Instantiate a new capture grabber with configuration.
-    pub fn new(config: Config) -> CaptureGrabber {
-        CaptureGrabber {
+    pub fn new(config: Config) -> ConfiguredCapture {
+        ConfiguredCapture {
             config,
             grabber: crate::capture(),
             cached_resolution: None,

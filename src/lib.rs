@@ -16,7 +16,7 @@
 //! Todo: An improvement would perhaps be to make [`Capture::capture_image`] return a reference to an image. And just panic if two calls to the capture happen.
 pub mod raster_image;
 pub mod util;
-pub mod capture;
+pub mod config;
 
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
@@ -114,12 +114,13 @@ pub trait ImageBGR {
 
     /// Convert the image to opaque rgba, using the most efficient conversion function available.
     fn to_rgba(&self) -> image::RgbaImage {
-        const HAVE_AVX2 : bool = cfg!(all(any(target_arch = "x86_64"), target_feature = "avx2"));
-        if HAVE_AVX2 {
-            self.to_rgba_avx2()
-        } else {
-            self.to_rgba_simple()
-        }
+        
+        #[cfg(all(any(target_arch = "x86_64"), target_feature = "avx2"))]
+        {self.to_rgba_avx2()}
+
+        
+        #[cfg(not(all(any(target_arch = "x86_64"), target_feature = "avx2")))]
+        {self.to_rgba_simple()}
     }
 
     /// An AVX2 SIMD implementation of swapping the color space in 32 byte blocks.
