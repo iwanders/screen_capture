@@ -4,22 +4,35 @@ use X11::*;
 
 mod shm;
 
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+
 /// Image wrapper around XImage.
 struct ImageX11 {
     image: *mut XImage,
+    poisoned: Rc<AtomicBool>,
 }
 
-impl ImageX11 {}
+impl ImageX11 {
+    fn check_poisoned(&self) {
+        if self.poisoned.load(Relaxed) {
+            panic!("interacting with stale image, call capture_image prior")
+        }
+    }
+}
 
 impl ImageBGR for ImageX11 {
     fn width(&self) -> u32 {
+        self.check_poisoned();
         unsafe { (*self.image).width as u32 }
     }
     fn height(&self) -> u32 {
+        self.check_poisoned();
         unsafe { (*self.image).height as u32 }
     }
 
     fn pixel(&self, x: u32, y: u32) -> BGR {
+        self.check_poisoned();
         let width = self.width();
         let height = self.height();
         if x > width || y > height {
@@ -45,6 +58,7 @@ impl ImageBGR for ImageX11 {
     }
 
     fn data(&self) -> &[BGR] {
+        self.check_poisoned();
         unsafe {
             let image = &(*self.image);
             let width = image.width as usize;
@@ -62,6 +76,7 @@ struct CaptureX11 {
     display: *mut Display,
     window: Window,
     image: Option<*mut XImage>,
+    image_poison: Rc<AtomicBool>,
     shminfo: XShmSegmentInfo,
     pos_x: u32,
     pos_y: u32,
@@ -91,10 +106,18 @@ impl CaptureX11 {
                 shminfo: Default::default(),
                 pos_x: 0,
                 pos_y: 0,
+                image_poison: Rc::new(false.into()),
             }
         }
     }
+
+    pub fn poison_image(&mut self) {
+        self.image_poison.store(true, Relaxed);
+        self.image_poison = Rc::new(false.into());
+    }
+
     pub fn prepare(&mut self, x: u32, y: u32, width: u32, height: u32) -> bool {
+        self.poison_image();
         let mut attributes = XWindowAttributes::default();
         let status = unsafe { XGetWindowAttributes(self.display, self.window, &mut attributes) };
         if status != 1 {
@@ -165,27 +188,29 @@ impl CaptureX11 {
 
 impl Capture for CaptureX11 {
     fn capture_image(&mut self) -> bool {
+        self.poison_image();
         if self.image.is_none() {
             return false;
         }
-        let z;
-
         unsafe {
-            z = XShmGetImage(
+            XShmGetImage(
                 self.display,
                 self.window,
                 self.image.unwrap(),
                 self.pos_x as i32,
                 self.pos_y as i32,
                 AllPlanes,
-            );
+            )
         }
-        z
     }
     fn image(&mut self) -> Result<Box<dyn ImageBGR>, ()> {
+        self.poison_image();
         if self.image.is_some() {
+            let new_bool = Rc::new(false.into());
+            self.image_poison = Rc::clone(&new_bool);
             Ok(Box::<ImageX11>::new(ImageX11 {
                 image: self.image.unwrap(),
+                poisoned: new_bool,
             }))
         } else {
             Err(())
