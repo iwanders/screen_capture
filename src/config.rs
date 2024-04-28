@@ -81,7 +81,7 @@ pub struct CaptureConfig {
 
 /// Helper struct to use the capture object to grab according to configuration.
 pub struct ConfiguredCapture {
-    pub config: CaptureConfig,
+    config: CaptureConfig,
     pub grabber: Box<dyn Capture>,
     pub cached_resolution: Option<Resolution>,
 }
@@ -125,6 +125,17 @@ impl ConfiguredCapture {
             self.cached_resolution = Some(current_resolution);
         }
         old_resolution != self.cached_resolution
+    }
+
+    /// Set the configuration and re-initialise appropriately.
+    pub fn set_config(&mut self, config: CaptureConfig) {
+        self.cached_resolution = None; // force reinitialisation.
+        self.config = config;
+    }
+
+    /// Get the current config.
+    pub fn config(&self) -> CaptureConfig {
+        self.config.clone()
     }
 
     /// Update the resolution and capture a new image.
