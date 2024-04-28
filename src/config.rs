@@ -74,21 +74,21 @@ pub fn get_config(width: u32, height: u32, specs: &[CaptureSpecification]) -> Ca
 
 /// Configuration struct, specifying all the configurable properties of the displaylight struct..
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct Config {
+pub struct CaptureConfig {
     /// A list of capture specifications, the first one to match will be used.
     pub capture: Vec<CaptureSpecification>,
 }
 
 /// Helper struct to use the capture object to grab according to configuration.
 pub struct ConfiguredCapture {
-    pub config: Config,
+    pub config: CaptureConfig,
     pub grabber: Box<dyn Capture>,
     pub cached_resolution: Option<Resolution>,
 }
 
 impl ConfiguredCapture {
     /// Instantiate a new capture grabber with configuration.
-    pub fn new(config: Config) -> ConfiguredCapture {
+    pub fn new(config: CaptureConfig) -> ConfiguredCapture {
         ConfiguredCapture {
             config,
             grabber: crate::capture(),
