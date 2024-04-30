@@ -185,6 +185,12 @@ impl Drop for ThreadedCapturer {
     }
 }
 
+impl Default for ThreadedCapturer {
+    fn default() -> Self {
+        ThreadedCapturer::new(Default::default())
+    }
+}
+
 impl ThreadedCapturer {
     /// Instantiate a new capture grabber with configuration.
     pub fn new(config: CaptureConfig) -> ThreadedCapturer {
@@ -198,7 +204,7 @@ impl ThreadedCapturer {
         let (sender, receiver) = channel::<CaptureConfig>();
         let thread = std::thread::spawn(move || {
             use std::time::{Duration, Instant};
-            const DEBUG_PRINT: bool = true;
+            const DEBUG_PRINT: bool = false;
 
             let epoch = Instant::now();
             let mut capturer =  Capturer::new(config_initial);
@@ -217,7 +223,7 @@ impl ThreadedCapturer {
                     }
                 }
                 
-                let rate_valid = capturer.config.rate >= 0.0;
+                let rate_valid = capturer.config.rate > 0.0;
                 if !rate_valid {
                     // Rate is negative or zero, can be used to disable, block on config updates for 100ms.
                     if let Ok(new_config) = receiver.recv_timeout(Duration::from_millis(100)) {
