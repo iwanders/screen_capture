@@ -167,10 +167,47 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex};
+
+#[derive(PartialEq, Clone)]
+pub struct CaptureInfo {
+    /// The result of the capture.
+    pub result: Result<Arc<image::RgbaImage>, ()>,
+    /// The time at which the capture was triggered.
+    pub time: std::time::SystemTime,
+    /// The duration of the capture and the processing combined.
+    pub took: std::time::Duration,
+}
+
+impl std::fmt::Debug for CaptureInfo {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        fmt.debug_struct("CaptureInfo")
+            .field(
+                "result",
+                &self
+                    .result
+                    .as_ref()
+                    .map(|v| format!("Image<{}x{}>", v.width(), v.height())),
+            )
+            .field("time", &self.time)
+            .field("took", &self.took)
+            .finish()
+    }
+}
+
+impl Default for CaptureInfo {
+    fn default() -> Self {
+        Self {
+            result: Err(()),
+            time: std::time::SystemTime::now(),
+            took: std::time::Duration::new(0, 0),
+        }
+    }
+}
+
 pub struct ThreadedCapturer {
     thread: Option<std::thread::JoinHandle<()>>,
     running: Arc<AtomicBool>,
-    latest: Arc<Mutex<(Result<Arc<image::RgbaImage>, ()>, std::time::SystemTime)>>,
+    latest: Arc<Mutex<CaptureInfo>>,
     sender: Sender<CaptureConfig>,
     /// Pointer to the current config.
     config: Arc<Mutex<CaptureConfig>>,
@@ -190,12 +227,11 @@ impl Default for ThreadedCapturer {
         ThreadedCapturer::new(Default::default())
     }
 }
-
 impl ThreadedCapturer {
     /// Instantiate a new capture grabber with configuration.
     pub fn new(config: CaptureConfig) -> ThreadedCapturer {
         let running: Arc<AtomicBool> = Arc::new(true.into());
-        let latest = Arc::new(Mutex::new((Err(()), std::time::SystemTime::now())));
+        let latest = Arc::new(Mutex::new(CaptureInfo::default()));
         let running_t = Arc::clone(&running);
         let latest_t = Arc::clone(&latest);
         let config_initial = config.clone();
@@ -265,16 +301,21 @@ impl ThreadedCapturer {
                 let capture_time = std::time::SystemTime::now();
                 let img = capturer.capture();
                 let img = img.map(|v| v.to_rgba());
+                let end;
                 {
                     let mut locked = latest.lock().unwrap();
                     if DEBUG_PRINT {
                         println!("capture at {: >16.6?} ", start.duration_since(epoch));
                     }
-                    *locked = (img.map(|v| Arc::new(v)), capture_time);
+                    end = std::time::Instant::now();
+                    *locked = CaptureInfo {
+                        result: img.map(|v| Arc::new(v)),
+                        time: capture_time,
+                        took: end - start,
+                    };
                 }
                 // std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
 
-                let end = std::time::Instant::now();
                 last_duration = end - start;
                 last_end = end;
                 if DEBUG_PRINT {
@@ -309,14 +350,8 @@ impl ThreadedCapturer {
         locked.clone()
     }
 
-    /// Obtain the latest image.
-    pub fn latest_image(&self) -> Result<Arc<image::RgbaImage>, ()> {
-        let lock = self.latest.lock().unwrap();
-        lock.0.clone()
-    }
-
     /// Obtain the latest image and its capture time.
-    pub fn latest(&self) -> (Result<Arc<image::RgbaImage>, ()>, std::time::SystemTime) {
+    pub fn latest(&self) -> CaptureInfo {
         let lock = self.latest.lock().unwrap();
         lock.clone()
     }

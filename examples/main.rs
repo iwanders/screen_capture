@@ -8,6 +8,7 @@ fn test_threaded() {
     println!("Starting default, that should be disabled.");
     let capturer = ThreadedCapturer::default();
     std::thread::sleep(Duration::from_millis(1000));
+    println!("latest: {:?}", capturer.latest());
 
     println!("Switching to 5 hz now");
     capturer.set_config(CaptureConfig {
@@ -15,6 +16,7 @@ fn test_threaded() {
         rate: 5.0,
     });
     std::thread::sleep(Duration::from_millis(1000));
+    println!("latest: {:?}", capturer.latest());
 
     println!("Switching to 20 hz now");
     capturer.set_config(CaptureConfig {
