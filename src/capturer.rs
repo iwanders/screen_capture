@@ -170,7 +170,7 @@ use std::sync::{Arc, Mutex};
 pub struct ThreadedCapturer {
     thread: Option<std::thread::JoinHandle<()>>,
     running: Arc<AtomicBool>,
-    latest: Arc<Mutex<(Result<Arc<image::RgbaImage>, ()>, std::time::Instant)>>,
+    latest: Arc<Mutex<(Result<Arc<image::RgbaImage>, ()>, std::time::SystemTime)>>,
     sender: Sender<CaptureConfig>,
     /// Pointer to the current config.
     config: Arc<Mutex<CaptureConfig>>,
@@ -195,7 +195,7 @@ impl ThreadedCapturer {
     /// Instantiate a new capture grabber with configuration.
     pub fn new(config: CaptureConfig) -> ThreadedCapturer {
         let running : Arc<AtomicBool> = Arc::new(true.into());
-        let latest = Arc::new(Mutex::new((Err(()), std::time::Instant::now())));
+        let latest = Arc::new(Mutex::new((Err(()), std::time::SystemTime::now())));
         let running_t = Arc::clone(&running);
         let latest_t = Arc::clone(&latest);
         let config_initial = config.clone();
@@ -265,9 +265,9 @@ impl ThreadedCapturer {
                     if DEBUG_PRINT {
                         println!("capture at {: >16.6?} ", start.duration_since(epoch));
                     }
-                    *locked = (img.map(|v|Arc::new(v)), start);
+                    *locked = (img.map(|v|Arc::new(v)), std::time::SystemTime::now());
                 }
-                std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
+                // std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
 
                 let end = std::time::Instant::now();
                 last_duration = end - start;
@@ -307,7 +307,7 @@ impl ThreadedCapturer {
     }
 
     /// Obtain the latest image and its capture time.
-    pub fn latest(&self) -> (Result<Arc<image::RgbaImage>, ()>, std::time::Instant) {
+    pub fn latest(&self) -> (Result<Arc<image::RgbaImage>, ()>, std::time::SystemTime) {
         let lock = self.latest.lock().unwrap();
         lock.clone()
     }
