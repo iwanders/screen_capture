@@ -75,8 +75,6 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
     Ok(Box::new(raster_image::RasterImageBGR::from_2d_vec(&img)))
 }
 
-
-
 /// Dump a ppm file to disk.
 pub fn write_ppm(img: &dyn ImageBGR, filename: &str) -> std::io::Result<()> {
     use std::fs::File;
@@ -151,19 +149,19 @@ pub trait WriteSupport {
     fn write_bmp(&self, filename: &str) -> std::io::Result<()>;
 }
 impl WriteSupport for dyn ImageBGR {
-    fn write_ppm(&self, filename: &str) -> std::io::Result<()>{
+    fn write_ppm(&self, filename: &str) -> std::io::Result<()> {
         write_ppm(self, filename)
     }
-    fn write_bmp(&self, filename: &str) -> std::io::Result<()>{
+    fn write_bmp(&self, filename: &str) -> std::io::Result<()> {
         write_bmp(self, filename)
     }
 }
 
 impl WriteSupport for crate::raster_image::RasterImageBGR {
-    fn write_ppm(&self, filename: &str) -> std::io::Result<()>{
+    fn write_ppm(&self, filename: &str) -> std::io::Result<()> {
         write_ppm(self, filename)
     }
-    fn write_bmp(&self, filename: &str) -> std::io::Result<()>{
+    fn write_bmp(&self, filename: &str) -> std::io::Result<()> {
         write_bmp(self, filename)
     }
 }

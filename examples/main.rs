@@ -1,48 +1,45 @@
-use std::env::temp_dir;
-use std::time::{Instant, Duration};
 use image::GenericImageView;
+use std::env::temp_dir;
+use std::time::{Duration, Instant};
 
-use screen_capture::{ThreadedCapturer, CaptureConfig};
-
+use screen_capture::{CaptureConfig, ThreadedCapturer};
 
 fn test_threaded() {
     println!("Starting default, that should be disabled.");
     let capturer = ThreadedCapturer::default();
     std::thread::sleep(Duration::from_millis(1000));
 
-
     println!("Switching to 5 hz now");
     capturer.set_config(CaptureConfig {
         capture: vec![],
-        rate: 5.0
+        rate: 5.0,
     });
     std::thread::sleep(Duration::from_millis(1000));
 
     println!("Switching to 20 hz now");
     capturer.set_config(CaptureConfig {
         capture: vec![],
-        rate: 20.0
+        rate: 20.0,
     });
     std::thread::sleep(Duration::from_millis(500));
     println!("Switching once in 10 seconds");
     capturer.set_config(CaptureConfig {
         capture: vec![],
-        rate: 0.1
+        rate: 0.1,
     });
     std::thread::sleep(Duration::from_millis(5000));
     println!("Switching back to 1 second seconds");
     capturer.set_config(CaptureConfig {
         capture: vec![],
-        rate: 1.0
+        rate: 1.0,
     });
     std::thread::sleep(Duration::from_millis(5000));
-
 }
 
 fn main() {
     test_threaded();
 
-    use screen_capture::util::{WriteSupport, read_ppm};
+    use screen_capture::util::{read_ppm, WriteSupport};
 
     let mut grabber = screen_capture::capture();
 
@@ -59,7 +56,6 @@ fn main() {
 
     std::thread::sleep(std::time::Duration::from_millis(1000));
 
-    
     let start = Instant::now();
     grabber.capture_image();
     let duration = start.elapsed();
@@ -87,10 +83,13 @@ fn main() {
             .expect("path must be ok"),
     )
     .unwrap();
-    img.write_bmp(temp_dir().join("grab.bmp").to_str().expect("path must be ok"))
-        .unwrap();
-
-
+    img.write_bmp(
+        temp_dir()
+            .join("grab.bmp")
+            .to_str()
+            .expect("path must be ok"),
+    )
+    .unwrap();
 
     {
         let start = Instant::now();
@@ -98,13 +97,15 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via to_rgba: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
-        img_rgba.save( temp_dir()
-            .join("img_to_rgba.png")
-            .to_str()
-            .expect("path must be ok")).unwrap();
+        img_rgba
+            .save(
+                temp_dir()
+                    .join("img_to_rgba.png")
+                    .to_str()
+                    .expect("path must be ok"),
+            )
+            .unwrap();
     } // 5.5ms'ish for 1080p.
-
-
 
     {
         let start = Instant::now();
@@ -112,26 +113,30 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via to_rgba_simd: {:?}", duration);
         println!("buf: {:?}", &img_rgba.as_raw()[0..20]);
-        img_rgba.save(temp_dir()
-            .join("img_to_rgba_simd.png")
-            .to_str()
-            .expect("path must be ok")).unwrap();
+        img_rgba
+            .save(
+                temp_dir()
+                    .join("img_to_rgba_simd.png")
+                    .to_str()
+                    .expect("path must be ok"),
+            )
+            .unwrap();
     } // 4.5ms'ish for 1080p.
 
-
-
-
     {
-        let img_sub = img.view(0,0, img.width(), img.height());
+        let img_sub = img.view(0, 0, img.width(), img.height());
         let start = Instant::now();
         let buff = img_sub.to_image();
         let duration = start.elapsed();
         println!("Time via sub and to_image: {:?}", duration);
         println!("buf: {:?}", &buff.as_raw()[0..20]);
-        buff.save(temp_dir()
-            .join("grab.png")
-            .to_str()
-            .expect("path must be ok")).unwrap();
+        buff.save(
+            temp_dir()
+                .join("grab.png")
+                .to_str()
+                .expect("path must be ok"),
+        )
+        .unwrap();
     } // 15ms-20ms'ish for 1080p.
 
     {
@@ -144,13 +149,14 @@ fn main() {
         let duration = start.elapsed();
         println!("Time for false color image to rgb8: {:?}", duration);
         println!("buf: {:?}", &img.as_raw()[0..20]);
-        img.save(temp_dir()
-            .join("img_false.png")
-            .to_str()
-            .expect("path must be ok")).unwrap();
+        img.save(
+            temp_dir()
+                .join("img_false.png")
+                .to_str()
+                .expect("path must be ok"),
+        )
+        .unwrap();
     } // 5ms + 5ms 'ish for 1080p.
-
-
 
     {
         let start = Instant::now();
@@ -158,12 +164,15 @@ fn main() {
         let duration = start.elapsed();
         println!("Time via to_rgb: {:?}", duration);
         println!("buf: {:?}", &img_rgb.as_raw()[0..20]);
-        img_rgb.save(temp_dir()
-            .join("img_to_rgb.png")
-            .to_str()
-            .expect("path must be ok")).unwrap();
+        img_rgb
+            .save(
+                temp_dir()
+                    .join("img_to_rgb.png")
+                    .to_str()
+                    .expect("path must be ok"),
+            )
+            .unwrap();
     } // 114ms'ish for 1080p.
-
 
     println!("Capture done writing");
 
@@ -174,31 +183,30 @@ fn main() {
             .expect("path must be ok"),
     )
     .expect("must be good");
-    read_ppm.write_ppm(
-        temp_dir()
-            .join("write_read_ppm.ppm")
-            .to_str()
-            .expect("path must be ok"),
-    )
-    .unwrap();
-
+    read_ppm
+        .write_ppm(
+            temp_dir()
+                .join("write_read_ppm.ppm")
+                .to_str()
+                .expect("path must be ok"),
+        )
+        .unwrap();
 
     println!("Cloning image.");
-
 
     let start = Instant::now();
     let cloned_img = img.clone();
     let duration = start.elapsed();
     println!("Time elapsed in expensive_function() is: {:?}", duration);
 
-    cloned_img.write_ppm(
-        temp_dir()
-            .join("cloned_img.ppm")
-            .to_str()
-            .expect("path must be ok"),
-    )
-    .unwrap();
-
+    cloned_img
+        .write_ppm(
+            temp_dir()
+                .join("cloned_img.ppm")
+                .to_str()
+                .expect("path must be ok"),
+        )
+        .unwrap();
 
     {
         // let buff = cloned_img.clone().to_image();
@@ -215,9 +223,21 @@ fn main() {
     }
 
     println!("Capture writing to temp.");
-    cloned_img.write_ppm(temp_dir().join("cloned_img_write_ppm.ppm").to_str().expect("path must be ok"))
+    cloned_img
+        .write_ppm(
+            temp_dir()
+                .join("cloned_img_write_ppm.ppm")
+                .to_str()
+                .expect("path must be ok"),
+        )
         .unwrap();
-    cloned_img.write_bmp(temp_dir().join("cloned_img_write_bmp.bmp").to_str().expect("path must be ok"))
+    cloned_img
+        .write_bmp(
+            temp_dir()
+                .join("cloned_img_write_bmp.bmp")
+                .to_str()
+                .expect("path must be ok"),
+        )
         .unwrap();
     println!("Capture done writing");
     println!("First pixel: {:#?}", img.pixel(0, 0));

@@ -14,11 +14,11 @@
 //! On Windows, a copied image is returned, so it can be kept around indefinitely, it also means that the capture time is longer as the copy happens.
 //!
 //! Todo: An improvement would perhaps be to make [`Capture::capture_image`] return a reference to an image. And just panic if two calls to the capture happen.
+pub mod capturer;
 pub mod raster_image;
 pub mod util;
-pub mod capturer;
 
-pub use capturer::{CaptureSpecification, CaptureConfig, Capturer, ThreadedCapturer};
+pub use capturer::{CaptureConfig, CaptureSpecification, Capturer, ThreadedCapturer};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
@@ -92,7 +92,8 @@ pub trait ImageBGR {
             let len = width * height * 4;
             std::slice::from_raw_parts(data_u8_ptr, len)
         };
-        image::RgbaImage::from_raw(self.width(), self.height(), data_u8.to_vec()).expect("must have correct dimensions")
+        image::RgbaImage::from_raw(self.width(), self.height(), data_u8.to_vec())
+            .expect("must have correct dimensions")
     }
 
     /// Convert the the image to rgba using a for loop.
@@ -102,7 +103,9 @@ pub trait ImageBGR {
         let mut new_data = Vec::with_capacity(total_len);
         // This minor application of unsafe to create an uninitialised vector
         // speeds things up tremendously.
-        unsafe {new_data.set_len(total_len);};
+        unsafe {
+            new_data.set_len(total_len);
+        };
         for i in 0..(self.width() * self.height()) as usize {
             let out_pos = i * 4;
             new_data[out_pos + 0] = data[i].r;
@@ -110,18 +113,21 @@ pub trait ImageBGR {
             new_data[out_pos + 2] = data[i].b;
             new_data[out_pos + 3] = 255;
         }
-        image::RgbaImage::from_raw(self.width(), self.height(), new_data).expect("must have correct dimensions")
+        image::RgbaImage::from_raw(self.width(), self.height(), new_data)
+            .expect("must have correct dimensions")
     }
 
     /// Convert the image to opaque rgba, using the most efficient conversion function available.
     fn to_rgba(&self) -> image::RgbaImage {
-        
         #[cfg(all(any(target_arch = "x86_64"), target_feature = "avx2"))]
-        {self.to_rgba_avx2()}
+        {
+            self.to_rgba_avx2()
+        }
 
-        
         #[cfg(not(all(any(target_arch = "x86_64"), target_feature = "avx2")))]
-        {self.to_rgba_simple()}
+        {
+            self.to_rgba_simple()
+        }
     }
 
     /// An AVX2 SIMD implementation of swapping the color space in 32 byte blocks.
@@ -137,19 +143,21 @@ pub trait ImageBGR {
         let mut new_data = Vec::with_capacity(total_len);
         // This minor application of unsafe to create an uninitialised vector
         // speeds things up tremendously.
-        unsafe {new_data.set_len(total_len);};
+        unsafe {
+            new_data.set_len(total_len);
+        };
         for i in 0..(self.width() * self.height()) as usize {
             let out_pos = i * 3;
             new_data[out_pos + 0] = data[i].r;
             new_data[out_pos + 1] = data[i].g;
             new_data[out_pos + 2] = data[i].b;
         }
-        image::RgbImage::from_raw(self.width(), self.height(), new_data).expect("must have correct dimensions")
+        image::RgbImage::from_raw(self.width(), self.height(), new_data)
+            .expect("must have correct dimensions")
     }
 }
 
 use image::{GenericImageView, Pixel, Rgba};
-
 
 impl GenericImageView for Box<dyn ImageBGR> {
     type Pixel = Rgba<u8>;
@@ -162,7 +170,6 @@ impl GenericImageView for Box<dyn ImageBGR> {
         *Self::Pixel::from_slice(&[bgr.r, bgr.g, bgr.b, 255])
     }
 }
-
 
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn ImageBGR> {
@@ -186,14 +193,7 @@ pub trait Capture {
     /// Attempt to prepare capture for a subsection of the entire desktop.
     /// This is implementation defined and not guaranteed to do anything. It MUST be called before
     /// trying to capture an image, as setup may happen here.
-    fn prepare_capture(
-        &mut self,
-        display: u32,
-        x: u32,
-        y: u32,
-        width: u32,
-        height: u32,
-    ) -> bool {
+    fn prepare_capture(&mut self, display: u32, x: u32, y: u32, width: u32, height: u32) -> bool {
         let _ = (display, x, y, width, height);
         false
     }
@@ -230,11 +230,11 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
         let data_ptr = std::mem::transmute::<*const BGR, *const u8>(data.as_ptr());
         let pixels = (width * height) as usize;
         let total_len = pixels * 4;
-        let mut output : Vec<u8> = Vec::with_capacity(total_len);
+        let mut output: Vec<u8> = Vec::with_capacity(total_len);
         output.set_len(total_len);
         let output_ptr = output.as_mut_ptr();
         // 256  / 8 = 32 bytes, 32 / 4 = 8 blocks of BGRA fit into a vector.
-        const STEP_SIZE : usize = 256 / 8;
+        const STEP_SIZE: usize = 256 / 8;
         let chunks = total_len / STEP_SIZE;
         trace!("Chunks: {chunks}");
 
@@ -252,7 +252,9 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
             let pos = STEP_SIZE * step;
             trace!("step: {step}, pos {pos}");
             // Load the data
-            let v = _mm256_loadu_si256(std::mem::transmute::<_, *const __m256i>(data_ptr.offset(pos as isize)));
+            let v = _mm256_loadu_si256(std::mem::transmute::<_, *const __m256i>(
+                data_ptr.offset(pos as isize),
+            ));
             trace!(" {}", pl(&v));
 
             // Shuffle, per 128bit lane.
@@ -268,12 +270,10 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
                 std::mem::transmute::<_, *mut __m256i>(output_ptr.offset(pos as isize)),
                 combined,
             );
-            
         }
 
         // Handle any remaining pixels manually.
-        for p in (chunks * STEP_SIZE..total_len).step_by(4)
-        {
+        for p in (chunks * STEP_SIZE..total_len).step_by(4) {
             trace!("p: {p}");
             output[p] = data[p / 4].r;
             output[p + 1] = data[p / 4].g;
@@ -328,7 +328,6 @@ pub mod tests {
         assert_eq!(std::mem::size_of::<BGR>(), std::mem::size_of::<u32>());
     }
 
-
     #[test]
     #[cfg(any(doc, all(any(target_arch = "x86_64"), target_feature = "avx2")))]
     fn test_rgb_simd() {
@@ -351,7 +350,7 @@ pub mod tests {
             for x in 0..img.width() {
                 use image::Pixel;
                 let orig = img.pixel(x, y);
-                let new_pixel = img_rgba_simd.get_pixel(x,y);
+                let new_pixel = img_rgba_simd.get_pixel(x, y);
                 assert_eq!(orig.r, new_pixel.channels()[0]);
                 assert_eq!(orig.g, new_pixel.channels()[1]);
                 assert_eq!(orig.b, new_pixel.channels()[2]);

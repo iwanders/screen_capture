@@ -1,7 +1,7 @@
 //! Helpers to select a configuration based on the resolution.
 
+use crate::{Capture, ImageBGR, Resolution};
 use serde::{Deserialize, Serialize};
-use crate::{Capture, Resolution, ImageBGR};
 
 /// Capture specification that conditionally applies.
 ///
@@ -37,7 +37,11 @@ pub struct CaptureSpecification {
 impl CaptureSpecification {
     /// Iterates through the specs to find the best one, augmends the missing or 0 values and returns it.
     /// See the documentation of [`CaptureSpecification`] for further information.
-    pub fn get_config(width: u32, height: u32, specs: &[CaptureSpecification]) -> CaptureSpecification {
+    pub fn get_config(
+        width: u32,
+        height: u32,
+        specs: &[CaptureSpecification],
+    ) -> CaptureSpecification {
         for spec in specs.iter() {
             let mut matches = true;
             if let Some(match_width) = spec.match_width {
@@ -83,9 +87,6 @@ pub struct CaptureConfig {
     /// A rate, used only if [`ThreadedCapturer`] is used.
     pub rate: f32,
 }
-
-
-
 
 /// Helper struct to use the capture object to grab according to configuration.
 pub struct Capturer {
@@ -162,10 +163,9 @@ impl Capturer {
     }
 }
 
-
-use std::sync::mpsc::{Sender, channel};
-use std::sync::atomic::{AtomicBool};
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
+use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex};
 pub struct ThreadedCapturer {
     thread: Option<std::thread::JoinHandle<()>>,
@@ -194,7 +194,7 @@ impl Default for ThreadedCapturer {
 impl ThreadedCapturer {
     /// Instantiate a new capture grabber with configuration.
     pub fn new(config: CaptureConfig) -> ThreadedCapturer {
-        let running : Arc<AtomicBool> = Arc::new(true.into());
+        let running: Arc<AtomicBool> = Arc::new(true.into());
         let latest = Arc::new(Mutex::new((Err(()), std::time::SystemTime::now())));
         let running_t = Arc::clone(&running);
         let latest_t = Arc::clone(&latest);
@@ -207,7 +207,7 @@ impl ThreadedCapturer {
             const DEBUG_PRINT: bool = false;
 
             let epoch = Instant::now();
-            let mut capturer =  Capturer::new(config_initial);
+            let mut capturer = Capturer::new(config_initial);
             let latest = latest_t;
             let config = config_t;
 
@@ -222,7 +222,7 @@ impl ThreadedCapturer {
                         *locked = new_config;
                     }
                 }
-                
+
                 let rate_valid = capturer.config.rate > 0.0;
                 if !rate_valid {
                     // Rate is negative or zero, can be used to disable, block on config updates for 100ms.
@@ -240,7 +240,11 @@ impl ThreadedCapturer {
                 let interval = Duration::from_secs_f32(1.0 / capturer.config.rate);
                 let start_timepoint = last_end + interval - last_duration;
                 if DEBUG_PRINT {
-                    println!("current:   {: >16.6?} start_timepoint: {: >12.6?}", Instant::now().duration_since(epoch) , start_timepoint.duration_since(epoch) );
+                    println!(
+                        "current:   {: >16.6?} start_timepoint: {: >12.6?}",
+                        Instant::now().duration_since(epoch),
+                        start_timepoint.duration_since(epoch)
+                    );
                 }
                 let now = Instant::now();
                 if now <= start_timepoint {
@@ -265,7 +269,7 @@ impl ThreadedCapturer {
                     if DEBUG_PRINT {
                         println!("capture at {: >16.6?} ", start.duration_since(epoch));
                     }
-                    *locked = (img.map(|v|Arc::new(v)), std::time::SystemTime::now());
+                    *locked = (img.map(|v| Arc::new(v)), std::time::SystemTime::now());
                 }
                 // std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
 
@@ -273,7 +277,11 @@ impl ThreadedCapturer {
                 last_duration = end - start;
                 last_end = end;
                 if DEBUG_PRINT {
-                    println!("Duration was {: >13.6?} at {: >12.6?}", last_duration.as_secs_f64(), Instant::now().duration_since(epoch));
+                    println!(
+                        "Duration was {: >13.6?} at {: >12.6?}",
+                        last_duration.as_secs_f64(),
+                        Instant::now().duration_since(epoch)
+                    );
                 }
             }
             if DEBUG_PRINT {
@@ -285,7 +293,7 @@ impl ThreadedCapturer {
             running,
             latest,
             sender,
-            thread: Some(thread)
+            thread: Some(thread),
         }
     }
 
@@ -312,4 +320,3 @@ impl ThreadedCapturer {
         lock.clone()
     }
 }
-
