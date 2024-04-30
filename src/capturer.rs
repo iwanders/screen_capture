@@ -174,8 +174,8 @@ pub struct CaptureInfo {
     pub result: Result<Arc<image::RgbaImage>, ()>,
     /// The time at which the capture was triggered.
     pub time: std::time::SystemTime,
-    /// The duration of the capture and the processing combined.
-    pub took: std::time::Duration,
+    /// The duration it took to capture and process the image combined.
+    pub duration: std::time::Duration,
 }
 
 impl std::fmt::Debug for CaptureInfo {
@@ -189,7 +189,7 @@ impl std::fmt::Debug for CaptureInfo {
                     .map(|v| format!("Image<{}x{}>", v.width(), v.height())),
             )
             .field("time", &self.time)
-            .field("took", &self.took)
+            .field("duration", &self.duration)
             .finish()
     }
 }
@@ -199,7 +199,7 @@ impl Default for CaptureInfo {
         Self {
             result: Err(()),
             time: std::time::SystemTime::now(),
-            took: std::time::Duration::new(0, 0),
+            duration: std::time::Duration::new(0, 0),
         }
     }
 }
@@ -311,7 +311,7 @@ impl ThreadedCapturer {
                     *locked = CaptureInfo {
                         result: img.map(|v| Arc::new(v)),
                         time: capture_time,
-                        took: end - start,
+                        duration: end - start,
                     };
                 }
                 // std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
