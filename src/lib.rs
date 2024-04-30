@@ -16,8 +16,9 @@
 //! Todo: An improvement would perhaps be to make [`Capture::capture_image`] return a reference to an image. And just panic if two calls to the capture happen.
 pub mod raster_image;
 pub mod util;
-pub mod config;
+pub mod capturer;
 
+pub use capturer::{CaptureSpecification, CaptureConfig, Capturer, ThreadedCapturer};
 
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]

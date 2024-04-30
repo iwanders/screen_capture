@@ -1,8 +1,45 @@
 use std::env::temp_dir;
-use std::time::{Instant};
+use std::time::{Instant, Duration};
 use image::GenericImageView;
 
+use screen_capture::{ThreadedCapturer, CaptureConfig, CaptureSpecification};
+
+
+fn test_threaded() {
+    let config = CaptureConfig {
+        // capture: vec![CaptureSpecification{width: 100, height: 100, ..Default::default()}],
+        capture: vec![],
+        rate: 5.0
+    };
+    let capturer = ThreadedCapturer::new(config);
+
+    println!("Should be going at 5 hz now");
+    std::thread::sleep(Duration::from_millis(1000));
+
+    println!("Switching to 20 hz now");
+    capturer.set_config(CaptureConfig {
+        capture: vec![],
+        rate: 20.0
+    });
+    std::thread::sleep(Duration::from_millis(500));
+    println!("Switching once in 10 seconds");
+    capturer.set_config(CaptureConfig {
+        capture: vec![],
+        rate: 0.1
+    });
+    std::thread::sleep(Duration::from_millis(5000));
+    println!("Switching back to 1 second seconds");
+    capturer.set_config(CaptureConfig {
+        capture: vec![],
+        rate: 1.0
+    });
+    std::thread::sleep(Duration::from_millis(5000));
+
+}
+
 fn main() {
+    test_threaded();
+
     use screen_capture::util::{WriteSupport, read_ppm};
 
     let mut grabber = screen_capture::capture();
