@@ -262,6 +262,7 @@ impl ThreadedCapturer {
                 }
 
                 let start = Instant::now();
+                let capture_time = std::time::SystemTime::now();
                 let img = capturer.capture();
                 let img = img.map(|v| v.to_rgba());
                 {
@@ -269,7 +270,7 @@ impl ThreadedCapturer {
                     if DEBUG_PRINT {
                         println!("capture at {: >16.6?} ", start.duration_since(epoch));
                     }
-                    *locked = (img.map(|v| Arc::new(v)), std::time::SystemTime::now());
+                    *locked = (img.map(|v| Arc::new(v)), capture_time);
                 }
                 // std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
 
