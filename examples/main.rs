@@ -7,6 +7,9 @@ use screen_capture::{CaptureConfig, ThreadedCapturer};
 fn test_threaded() {
     println!("Starting default, that should be disabled.");
     let capturer = ThreadedCapturer::default();
+
+    capturer.set_pre_callback(std::sync::Arc::new(|v|{print!("Frame {v} -> ")}));
+    capturer.set_post_callback(std::sync::Arc::new(|v|{println!("Captured {v:?}")}));
     std::thread::sleep(Duration::from_millis(1000));
     println!("latest: {:?}", capturer.latest());
 

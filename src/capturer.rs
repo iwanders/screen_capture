@@ -172,10 +172,15 @@ use std::sync::{Arc, Mutex};
 pub struct CaptureInfo {
     /// The result of the capture.
     pub result: Result<Arc<image::RgbaImage>, ()>,
+
     /// The time at which the capture was triggered.
     pub time: std::time::SystemTime,
+
     /// The duration it took to capture and process the image combined.
     pub duration: std::time::Duration,
+
+    /// The frame identifier as a counter, this increases for each capture() invocation.
+    pub counter: usize,
 }
 
 impl std::fmt::Debug for CaptureInfo {
@@ -190,6 +195,7 @@ impl std::fmt::Debug for CaptureInfo {
             )
             .field("time", &self.time)
             .field("duration", &self.duration)
+            .field("counter", &self.counter)
             .finish()
     }
 }
@@ -200,6 +206,7 @@ impl Default for CaptureInfo {
             result: Err(()),
             time: std::time::SystemTime::now(),
             duration: std::time::Duration::new(0, 0),
+            counter: 0,
         }
     }
 }
@@ -208,10 +215,14 @@ pub struct ThreadedCapturer {
     thread: Option<std::thread::JoinHandle<()>>,
     running: Arc<AtomicBool>,
     latest: Arc<Mutex<CaptureInfo>>,
-    sender: Sender<CaptureConfig>,
+    sender_config: Sender<CaptureConfig>,
+    sender_pre: Sender<PreCallback>,
+    sender_post: Sender<PostCallback>,
     /// Pointer to the current config.
     config: Arc<Mutex<CaptureConfig>>,
 }
+pub type PreCallback = Arc<dyn Fn(usize) -> () + Send + Sync + 'static>;
+pub type PostCallback = Arc<dyn Fn(CaptureInfo) -> () + Send + Sync + 'static>;
 
 impl Drop for ThreadedCapturer {
     fn drop(&mut self) {
@@ -237,7 +248,9 @@ impl ThreadedCapturer {
         let config_initial = config.clone();
         let config = Arc::new(Mutex::new(config));
         let config_t = Arc::clone(&config);
-        let (sender, receiver) = channel::<CaptureConfig>();
+        let (sender_config, receiver_config) = channel::<CaptureConfig>();
+        let (sender_pre, receiver_pre) = channel::<PreCallback>();
+        let (sender_post, receiver_post) = channel::<PostCallback>();
         let thread = std::thread::spawn(move || {
             use std::time::{Duration, Instant};
             const DEBUG_PRINT: bool = false;
@@ -249,20 +262,30 @@ impl ThreadedCapturer {
 
             let mut last_duration = std::time::Duration::new(0, 0);
             let mut last_end = Instant::now();
+            let mut counter = 0;
+            let mut pre_callback: PreCallback = Arc::new(|_|{});
+            let mut post_callback: PostCallback = Arc::new(|_|{});
+
             while running_t.load(Relaxed) {
                 // First, check for new configs, if so consume them.
-                for new_config in receiver.try_iter() {
+                for new_config in receiver_config.try_iter() {
                     capturer.set_config(new_config.clone());
                     {
                         let mut locked = config.lock().unwrap();
                         *locked = new_config;
                     }
                 }
+                for callback in receiver_pre.try_iter() {
+                    pre_callback = callback;
+                }
+                for callback in receiver_post.try_iter() {
+                    post_callback = callback;
+                }
 
                 let rate_valid = capturer.config.rate > 0.0;
                 if !rate_valid {
                     // Rate is negative or zero, can be used to disable, block on config updates for 100ms.
-                    if let Ok(new_config) = receiver.recv_timeout(Duration::from_millis(100)) {
+                    if let Ok(new_config) = receiver_config.recv_timeout(Duration::from_millis(100)) {
                         capturer.set_config(new_config.clone());
                         {
                             let mut locked = config.lock().unwrap();
@@ -297,23 +320,30 @@ impl ThreadedCapturer {
                     }
                 }
 
+                counter += 1;
+                let this_counter = counter;
+                (pre_callback)(this_counter);
                 let start = Instant::now();
                 let capture_time = std::time::SystemTime::now();
                 let img = capturer.capture();
                 let img = img.map(|v| v.to_rgba());
                 let end;
-                {
+                let info = {
                     let mut locked = latest.lock().unwrap();
                     if DEBUG_PRINT {
                         println!("capture at {: >16.6?} ", start.duration_since(epoch));
                     }
                     end = std::time::Instant::now();
-                    *locked = CaptureInfo {
+                    let info = CaptureInfo {
                         result: img.map(|v| Arc::new(v)),
                         time: capture_time,
                         duration: end - start,
+                        counter: this_counter,
                     };
-                }
+                    *locked = info.clone();
+                    info
+                };
+                (post_callback)(info);
                 // std::thread::sleep(Duration::from_millis(100) - (std::time::Instant::now() - start));
 
                 last_duration = end - start;
@@ -334,14 +364,28 @@ impl ThreadedCapturer {
             config,
             running,
             latest,
-            sender,
+            sender_config,
+            sender_pre,
+            sender_post,
             thread: Some(thread),
         }
     }
 
     /// Set the configuration and re-initialise appropriately.
     pub fn set_config(&self, config: CaptureConfig) {
-        let _ = self.sender.send(config);
+        let _ = self.sender_config.send(config);
+    }
+
+    /// Set the callback that's invoked before the frame is captured.
+    pub fn set_pre_callback(&self, f: PreCallback) {
+        let _ = self.sender_pre.send(f);
+    }
+
+    /// Set the callback that's invoked after the frame capture is complete, it is passed
+    /// the capture info. This will be called from the thread that captures, so keep it short
+    /// else it blocks capturing thread.
+    pub fn set_post_callback(&self, f: PostCallback) {
+        let _ = self.sender_post.send(f);
     }
 
     /// Get the current config.
