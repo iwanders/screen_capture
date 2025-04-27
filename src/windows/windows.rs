@@ -353,15 +353,6 @@ impl CaptureWin {
                 // Well, we timed out, and we don't have any image... bummer.
                 return Err(windows::core::Error::OK); // Just to make an error without failure information.
             } else {
-                /*
-                    There is a condition where we reach this with:
-                        Error { code: 0x887A0001, message: The application made a call that is invalid.
-                        Either the parameters of the call or the state of some object was incorrect.
-                        Enable the D3D debug layer in order to see details via debug messages.
-
-                    Which doesn't recover by itself, it seems to happen if we create the duplicator
-                    before we log in?
-                */
                 println!("Unhandled error!: {:?}", r);
                 unsafe {
                     self.duplicator

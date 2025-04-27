@@ -29,11 +29,11 @@ impl RasterImageBGR {
 
         // The fastest copy ever.
 
-        return RasterImageBGR {
+        RasterImageBGR {
             width,
             height,
             data: img.data().to_vec(),
-        };
+        }
     }
 
     /// Create a new raster image of specified width and height, filled with the provided color.
@@ -64,7 +64,7 @@ impl RasterImageBGR {
     pub fn from_2d_vec(data: &[Vec<BGR>]) -> RasterImageBGR {
         let height = data.len() as u32;
         let width = data
-            .get(0)
+            .first()
             .expect("image should have at least one row")
             .len() as u32;
         let mut res: RasterImageBGR = RasterImageBGR {

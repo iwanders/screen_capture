@@ -9,8 +9,7 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
     use std::io::{BufRead, BufReader};
     let br = BufReader::new(file);
     let mut lines = br.lines();
-    let width: u32;
-    let height: u32;
+
     fn make_error(v: &str) -> Box<dyn std::error::Error> {
         Box::new(std::io::Error::new(std::io::ErrorKind::Other, v))
     }
@@ -27,11 +26,11 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
     let l = lines
         .next()
         .ok_or_else(|| make_error("Not enough lines"))??;
-    let mut values = l.trim().split(' ').map(|x| str::parse::<u32>(x));
-    width = values
+    let mut values = l.trim().split(' ').map(str::parse::<u32>);
+    let width = values
         .next()
         .ok_or_else(|| make_error("Could not parse width."))??;
-    height = values
+    let height = values
         .next()
         .ok_or_else(|| make_error("Could not parse height."))??;
 
@@ -53,7 +52,7 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
         img[li].resize(width as usize, Default::default());
         // Finally, parse the row.
         // https://doc.rust-lang.org/rust-by-example/error/iter_result.html
-        let split = l.trim().split(' ').map(|x| str::parse::<u32>(x));
+        let split = l.trim().split(' ').map(str::parse::<u32>);
         let numbers: Result<Vec<_>, _> = split.collect();
         let numbers = numbers?;
         // Cool, now we have a bunch of numbers, verify the width.

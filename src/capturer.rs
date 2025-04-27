@@ -221,8 +221,8 @@ pub struct ThreadedCapturer {
     /// Pointer to the current config.
     config: Arc<Mutex<CaptureConfig>>,
 }
-pub type PreCallback = Arc<dyn Fn(usize) -> () + Send + Sync + 'static>;
-pub type PostCallback = Arc<dyn Fn(CaptureInfo) -> () + Send + Sync + 'static>;
+pub type PreCallback = Arc<dyn Fn(usize) + Send + Sync + 'static>;
+pub type PostCallback = Arc<dyn Fn(CaptureInfo) + Send + Sync + 'static>;
 
 impl Drop for ThreadedCapturer {
     fn drop(&mut self) {
@@ -263,8 +263,8 @@ impl ThreadedCapturer {
             let mut last_duration = std::time::Duration::new(0, 0);
             let mut last_end = Instant::now();
             let mut counter = 0;
-            let mut pre_callback: PreCallback = Arc::new(|_|{});
-            let mut post_callback: PostCallback = Arc::new(|_|{});
+            let mut pre_callback: PreCallback = Arc::new(|_| {});
+            let mut post_callback: PostCallback = Arc::new(|_| {});
 
             while running_t.load(Relaxed) {
                 // First, check for new configs, if so consume them.
@@ -285,7 +285,8 @@ impl ThreadedCapturer {
                 let rate_valid = capturer.config.rate > 0.0;
                 if !rate_valid {
                     // Rate is negative or zero, can be used to disable, block on config updates for 100ms.
-                    if let Ok(new_config) = receiver_config.recv_timeout(Duration::from_millis(100)) {
+                    if let Ok(new_config) = receiver_config.recv_timeout(Duration::from_millis(100))
+                    {
                         capturer.set_config(new_config.clone());
                         {
                             let mut locked = config.lock().unwrap();
@@ -335,7 +336,7 @@ impl ThreadedCapturer {
                     }
                     end = std::time::Instant::now();
                     let info = CaptureInfo {
-                        result: img.map(|v| Arc::new(v)),
+                        result: img.map(Arc::new),
                         time: capture_time,
                         duration: end - start,
                         counter: this_counter,

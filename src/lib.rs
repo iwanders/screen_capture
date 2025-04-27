@@ -119,21 +119,21 @@ pub trait ImageBGR {
 
     /// Convert the image to opaque rgba, using the most efficient conversion function available.
     fn to_rgba(&self) -> image::RgbaImage {
-        #[cfg(all(any(target_arch = "x86_64"), target_feature = "avx2"))]
+        #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
         {
             self.to_rgba_avx2()
         }
 
-        #[cfg(not(all(any(target_arch = "x86_64"), target_feature = "avx2")))]
+        #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
         {
             self.to_rgba_simple()
         }
     }
 
     /// An AVX2 SIMD implementation of swapping the color space in 32 byte blocks.
-    #[cfg(any(doc, all(any(target_arch = "x86_64"), target_feature = "avx2")))]
+    #[cfg(any(doc, all(target_arch = "x86_64", target_feature = "avx2")))]
     fn to_rgba_avx2(&self) -> image::RgbaImage {
-        return avx2_simd_bgr_to_rgba(self.width(), self.height(), self.data());
+        avx2_simd_bgr_to_rgba(self.width(), self.height(), self.data())
     }
 
     /// Convert the image to rgb.
@@ -148,7 +148,7 @@ pub trait ImageBGR {
         };
         for i in 0..(self.width() * self.height()) as usize {
             let out_pos = i * 3;
-            new_data[out_pos + 0] = data[i].r;
+            new_data[out_pos] = data[i].r;
             new_data[out_pos + 1] = data[i].g;
             new_data[out_pos + 2] = data[i].b;
         }
@@ -174,7 +174,7 @@ impl GenericImageView for Box<dyn ImageBGR> {
 // Implementation for cloning a boxed image, this always makes a true copy to a raster image.
 impl Clone for Box<dyn ImageBGR> {
     fn clone(&self) -> Self {
-        return Box::new(RasterImageBGR::new(self.as_ref()));
+        Box::new(RasterImageBGR::new(self.as_ref()))
     }
 }
 
@@ -199,7 +199,7 @@ pub trait Capture {
     }
 }
 
-#[cfg(any(doc, all(any(target_arch = "x86_64"), target_feature = "avx2")))]
+#[cfg(any(doc, all(target_arch = "x86_64", target_feature = "avx2")))]
 fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaImage {
     use std::arch::x86_64::*;
     const DO_PRINTS: bool = false;
@@ -219,11 +219,7 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
     unsafe fn pl(input: &__m256i) -> String {
         let v: [u8; 32] = [0; 32];
         _mm256_storeu_si256(v.as_ptr() as *mut _, *input);
-        format!(
-            "{} | {}",
-            format!("{:02X?}", &v[0..16]),
-            format!("{:02X?}", &v[16..])
-        )
+        format!("{:02X?} | {:02X?}", &v[0..16], &v[16..])
     }
 
     let new_data = unsafe {
@@ -242,18 +238,18 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
         trace!(" {}", pl(&alpha_mask));
         // Okay, now we need a shuffle to swap the color channels.
         let mask = _mm256_set_epi64x(
-            i64::from_ne_bytes(0x00_0c_0d_0e__00_08_09_0a_u64.to_ne_bytes()),
-            i64::from_ne_bytes(0x00_04_05_06__00_00_01_02_u64.to_ne_bytes()),
-            i64::from_ne_bytes(0x00_0c_0d_0e__00_08_09_0a_u64.to_ne_bytes()),
-            i64::from_ne_bytes(0x00_04_05_06__00_00_01_02_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_0c_0d_0e_00_08_09_0a_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_04_05_06_00_00_01_02_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_0c_0d_0e_00_08_09_0a_u64.to_ne_bytes()),
+            i64::from_ne_bytes(0x00_04_05_06_00_00_01_02_u64.to_ne_bytes()),
         );
         // Handle the full chunks.
         for step in 0..chunks {
             let pos = STEP_SIZE * step;
             trace!("step: {step}, pos {pos}");
             // Load the data
-            let v = _mm256_loadu_si256(std::mem::transmute::<_, *const __m256i>(
-                data_ptr.offset(pos as isize),
+            let v = _mm256_loadu_si256(std::mem::transmute::<*const u8, *const __m256i>(
+                data_ptr.add(pos),
             ));
             trace!(" {}", pl(&v));
 
@@ -267,7 +263,7 @@ fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaIm
 
             // Write back the finished data.
             _mm256_storeu_si256(
-                std::mem::transmute::<_, *mut __m256i>(output_ptr.offset(pos as isize)),
+                std::mem::transmute::<*const u8, *mut __m256i>(output_ptr.add(pos)),
                 combined,
             );
         }
@@ -329,7 +325,7 @@ pub mod tests {
     }
 
     #[test]
-    #[cfg(any(doc, all(any(target_arch = "x86_64"), target_feature = "avx2")))]
+    #[cfg(any(doc, all(target_arch = "x86_64", target_feature = "avx2")))]
     fn test_rgb_simd() {
         // fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::RgbaImage {
         use crate::util::WriteSupport;
