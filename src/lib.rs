@@ -13,19 +13,43 @@
 //!
 //! On Windows, a copied image is returned, so it can be kept around indefinitely, it also means that the capture time is longer as the copy happens.
 //!
-//! Todo: An improvement would perhaps be to make [`Capture::capture_image`] return a reference to an image. And just panic if two calls to the capture happen.
+/*
+Todo: An improvement would perhaps be to make [`Capture::capture_image`] return a reference to an image. And just panic if two calls to the capture happen.
+*/
 pub mod capturer;
 pub mod raster_image;
 pub mod util;
 
 pub use capturer::{CaptureConfig, CaptureSpecification, Capturer, ThreadedCapturer};
 
+use thiserror::Error;
+
+/// The errors that may be returned, strings hold platform specific error messages.
+#[derive(Error, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone)]
+pub enum ScreenCaptureError {
+    /// An issue happened during initialisation.
+    ///
+    /// This points at a fundamental issue that needs to be resolved, like xshm not existing.
+    #[error("initialisation failed: {msg}")]
+    Initialisation { msg: String },
+    /// Permission to capture was denied.
+    ///
+    /// This may be temporary, for example in Windows' UAC prompt.
+    #[error("no permission to capture: {msg}")]
+    PermissionDenied { msg: String },
+    /// A temporary failure.
+    ///
+    /// This is only ever used by the actual image capture.
+    #[error("a transient failure: {msg}")]
+    Transient { msg: String },
+}
+
 #[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
 mod backend;
 
 /// Get a new instance of the screen grabber for this platform.
-pub fn capture() -> Box<dyn Capture> {
+pub fn capture() -> Result<Box<dyn Capture>, ScreenCaptureError> {
     backend::capture()
 }
 
@@ -193,10 +217,14 @@ pub trait Capture {
     /// Attempt to prepare capture for a subsection of the entire desktop.
     /// This is implementation defined and not guaranteed to do anything. It MUST be called before
     /// trying to capture an image, as setup may happen here.
-    fn prepare_capture(&mut self, display: u32, x: u32, y: u32, width: u32, height: u32) -> bool {
-        let _ = (display, x, y, width, height);
-        false
-    }
+    fn prepare_capture(
+        &mut self,
+        display: u32,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<(), ScreenCaptureError>;
 }
 
 #[cfg(any(doc, all(target_arch = "x86_64", target_feature = "avx2")))]
