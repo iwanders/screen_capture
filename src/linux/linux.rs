@@ -92,14 +92,16 @@ impl Drop for CaptureX11 {
 }
 
 impl CaptureX11 {
-    pub fn new() -> CaptureX11 {
+    pub fn new() -> Result<CaptureX11, ScreenCaptureError> {
         unsafe {
             let display = XOpenDisplay(std::ptr::null::<libc::c_char>());
             if XShmQueryExtension(display) == 0 {
-                panic!("We really need the xshared memory extension. Bailing out.");
+                return Err(ScreenCaptureError::Initialisation {
+                    msg: "missing XShm extension".to_string(),
+                });
             }
             let window = XRootWindow(display, XDefaultScreen(display));
-            CaptureX11 {
+            Ok(CaptureX11 {
                 display,
                 window,
                 image: None,
@@ -107,7 +109,7 @@ impl CaptureX11 {
                 pos_x: 0,
                 pos_y: 0,
                 image_poison: Rc::new(false.into()),
-            }
+            })
         }
     }
 
@@ -116,12 +118,20 @@ impl CaptureX11 {
         self.image_poison = Rc::new(false.into());
     }
 
-    pub fn prepare(&mut self, x: u32, y: u32, width: u32, height: u32) -> bool {
+    pub fn prepare(
+        &mut self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<(), ScreenCaptureError> {
         self.poison_image();
         let mut attributes = XWindowAttributes::default();
         let status = unsafe { XGetWindowAttributes(self.display, self.window, &mut attributes) };
         if status != 1 {
-            panic!("Retrieving the window attributes failed.");
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "failed to retrieve window attributes".to_string(),
+            });
         }
 
         let width = std::cmp::min(
@@ -179,10 +189,12 @@ impl CaptureX11 {
 
             // And now, we just have to attach the shared memory.
             if XShmAttach(self.display, &self.shminfo) == 0 {
-                panic!("Couldn't attach shared memory");
+                return Err(ScreenCaptureError::Initialisation {
+                    msg: "could not attach shared memory".to_string(),
+                });
             }
         }
-        true
+        Ok(())
     }
 }
 
@@ -242,7 +254,14 @@ impl Capture for CaptureX11 {
         Resolution { width, height }
     }
 
-    fn prepare_capture(&mut self, _display: u32, x: u32, y: u32, width: u32, height: u32) -> bool {
+    fn prepare_capture(
+        &mut self,
+        _display: u32,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<(), ScreenCaptureError> {
         CaptureX11::prepare(self, x, y, width, height)
     }
 }
@@ -252,11 +271,11 @@ unsafe extern "C" fn error_handler(_display: *mut Display, event: *mut XErrorEve
     0
 }
 
-pub fn capture() -> Box<dyn Capture> {
+pub fn capture() -> Result<Box<dyn Capture>, ScreenCaptureError> {
     unsafe {
         XSetErrorHandler(error_handler);
     }
-    let mut z = Box::<CaptureX11>::new(CaptureX11::new());
-    z.prepare(0, 0, 0, 0);
-    z
+    let mut z = Box::<CaptureX11>::new(CaptureX11::new()?);
+    z.prepare(0, 0, 0, 0)?;
+    Ok(z)
 }

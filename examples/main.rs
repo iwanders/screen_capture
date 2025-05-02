@@ -41,22 +41,22 @@ fn test_threaded() {
     std::thread::sleep(Duration::from_millis(5000));
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     test_threaded();
 
     use screen_capture::util::{read_ppm, WriteSupport};
 
-    let mut grabber = screen_capture::capture();
+    let mut grabber = screen_capture::capture()?;
 
     let res = grabber.resolution();
 
     println!("Capture reports resolution of: {:?}", res);
     if res.width > 1920 {
         // Use my right monitor...
-        grabber.prepare_capture(0, 1920, 0, res.width - 1920, res.height);
+        grabber.prepare_capture(0, 1920, 0, res.width - 1920, res.height)?;
     } else {
         // use left monitor only.
-        grabber.prepare_capture(0, 0, 0, res.width, res.height);
+        grabber.prepare_capture(0, 0, 0, res.width, res.height)?;
     }
 
     std::thread::sleep(std::time::Duration::from_millis(1000));
@@ -260,4 +260,6 @@ fn main() {
             img.pixel(img.width() - 1, img.height() - 1)
         );
     }
+
+    Ok(())
 }

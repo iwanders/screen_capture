@@ -1,6 +1,6 @@
 //! Helpers to select a configuration based on the resolution.
 
-use crate::{Capture, ImageBGR, Resolution};
+use crate::{Capture, ImageBGR, Resolution, ScreenCaptureError};
 use serde::{Deserialize, Serialize};
 
 /// Capture specification that conditionally applies.
@@ -97,18 +97,19 @@ pub struct Capturer {
 
 impl Capturer {
     /// Instantiate a new capture grabber with configuration.
-    pub fn new(config: CaptureConfig) -> Capturer {
-        Self {
+    pub fn new(config: CaptureConfig) -> Result<Capturer, ScreenCaptureError> {
+        let grabber = crate::capture()?;
+        Ok(Self {
             config,
-            grabber: crate::capture(),
+            grabber,
             cached_resolution: None,
-        }
+        })
     }
 
     /// Update the capture configuration according to the latest resolution.
     ///
     /// Returns true if the configuration changed.
-    pub fn update_resolution(&mut self) -> bool {
+    pub fn update_resolution(&mut self) -> Result<bool, ScreenCaptureError> {
         // First, check if the resolution of the desktop environment has changed, if so, act.
         let current_resolution = self.grabber.resolution();
         let old_resolution = self.cached_resolution;
@@ -129,11 +130,11 @@ impl Capturer {
                 config.y,
                 config.width,
                 config.height,
-            );
+            )?;
             // Store the current resolution.
             self.cached_resolution = Some(current_resolution);
         }
-        old_resolution != self.cached_resolution
+        Ok(old_resolution != self.cached_resolution)
     }
 
     /// Set the configuration and re-initialise appropriately.
@@ -148,18 +149,20 @@ impl Capturer {
     }
 
     /// Update the resolution and capture a new image.
-    pub fn capture(&mut self) -> Result<Box<dyn ImageBGR>, ()> {
-        self.update_resolution();
+    pub fn capture(&mut self) -> Result<Box<dyn ImageBGR>, ScreenCaptureError> {
+        self.update_resolution()?;
 
         // Now, we are ready to try and get the image:
         let res = self.grabber.capture_image();
 
         if !res {
-            return Err(());
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "failed to capture image".to_owned(),
+            });
         }
 
         // Then, we can grab the actual image.
-        self.grabber.image()
+        Ok(self.grabber.image().unwrap())
     }
 }
 
@@ -171,7 +174,7 @@ use std::sync::{Arc, Mutex};
 #[derive(PartialEq, Clone)]
 pub struct CaptureInfo {
     /// The result of the capture.
-    pub result: Result<Arc<image::RgbaImage>, ()>,
+    pub result: Result<Arc<image::RgbaImage>, ScreenCaptureError>,
 
     /// The time at which the capture was triggered.
     pub time: std::time::SystemTime,
@@ -203,7 +206,9 @@ impl std::fmt::Debug for CaptureInfo {
 impl Default for CaptureInfo {
     fn default() -> Self {
         Self {
-            result: Err(()),
+            result: Err(ScreenCaptureError::Initialisation {
+                msg: "not initialised".to_owned(),
+            }),
             time: std::time::SystemTime::now(),
             duration: std::time::Duration::new(0, 0),
             counter: 0,
@@ -256,7 +261,7 @@ impl ThreadedCapturer {
             const DEBUG_PRINT: bool = false;
 
             let epoch = Instant::now();
-            let mut capturer = Capturer::new(config_initial);
+            let mut capturer = Capturer::new(config_initial).unwrap();
             let latest = latest_t;
             let config = config_t;
 
