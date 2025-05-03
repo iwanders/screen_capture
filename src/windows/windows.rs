@@ -13,9 +13,10 @@
 use crate::*;
 use windows;
 
+use windows::core::Error as WinError;
+use windows::core::Interface;
 use windows::{
-    core::Result, core::*, Win32::Graphics::Direct3D11::*, Win32::Graphics::Dxgi::Common::*,
-    Win32::Graphics::Dxgi::*,
+    Win32::Graphics::Direct3D11::*, Win32::Graphics::Dxgi::Common::*, Win32::Graphics::Dxgi::*,
 };
 
 struct ImageWin {
@@ -23,6 +24,14 @@ struct ImageWin {
     mapped: windows::Win32::Graphics::Direct3D11::D3D11_MAPPED_SUBRESOURCE,
     width: u32,
     height: u32,
+}
+
+impl From<windows::core::Error> for ScreenCaptureError {
+    fn from(v: windows::core::Error) -> Self {
+        ScreenCaptureError::Transient {
+            msg: format!("{v:?}"),
+        }
+    }
 }
 
 impl ImageWin {
@@ -150,7 +159,7 @@ fn from_wide(arr: &[u16]) -> OsString {
 }
 
 impl CaptureWin {
-    fn init_adaptor(&mut self) -> Result<()> {
+    fn init_adaptor(&mut self) -> Result<(), ScreenCaptureError> {
         // let (factory, device) = create_device().expect("Must have a device.");
         // let adaptor = hardware_adapter(&factory).expect("Must have an adaptor.");
         // self.adaptor = Some(adaptor);
@@ -212,10 +221,12 @@ impl CaptureWin {
             };
         }
 
-        Err(windows::core::Error::OK) // Just to make an error without failure information.
+        Err(ScreenCaptureError::Initialisation {
+            msg: "failed to find adapter".to_owned(),
+        })
     }
 
-    fn init_output(&mut self, desired: u32) -> Result<()> {
+    fn init_output(&mut self, desired: u32) -> Result<(), ScreenCaptureError> {
         // Obtain the video outputs used by this adaptor.
         // Is the primary screen always the zeroth index??
         let adaptor = self
@@ -245,10 +256,13 @@ impl CaptureWin {
                 res = adaptor.EnumOutputs(output_index);
             }
         }
-        Err(windows::core::Error::OK) // Just to make an error without failure information.
+
+        Err(ScreenCaptureError::Initialisation {
+            msg: "failed initialise output".to_owned(),
+        })
     }
 
-    fn init_duplicator(&mut self) -> Result<()> {
+    fn init_duplicator(&mut self) -> Result<(), ScreenCaptureError> {
         let output = self.output.as_ref().expect("Must have an output");
         self.duplicator = None;
 
@@ -261,7 +275,7 @@ impl CaptureWin {
             // desc.Monitor
             // );
 
-            let output1: Result<IDXGIOutput1> = output.cast();
+            let output1: Result<IDXGIOutput1, WinError> = output.cast();
             let output1 = output1.expect("Should have succeeded.");
             // let output1 = output.GetParent::<&IDXGIOutput1>().expect("Yes");
             // From C++, the following can fail with:
@@ -302,22 +316,28 @@ impl CaptureWin {
         Ok(())
     }
 
-    pub fn new() -> CaptureWin {
+    pub fn new() -> Result<CaptureWin, ScreenCaptureError> {
         let mut n: CaptureWin = Default::default();
-        n.init_adaptor()
-            .expect("Should have an adaptor and d3d11 device now.");
-        n
+        n.init_adaptor()?;
+        Ok(n)
     }
 
-    pub fn prepare(&mut self, display: u32, _x: u32, _y: u32, _width: u32, _height: u32) -> bool {
+    pub fn prepare(
+        &mut self,
+        display: u32,
+        _x: u32,
+        _y: u32,
+        _width: u32,
+        _height: u32,
+    ) -> Result<(), WinError> {
         self.init_output(display)
             .expect("Should be able to setup the output.");
         self.init_duplicator()
             .expect("Should be able to get the duplicator.");
-        true
+        Ok(())
     }
 
-    pub fn capture(&mut self) -> Result<()> {
+    pub fn capture(&mut self) -> Result<(), ScreenCaptureError> {
         // Ok, so, check if we have a duplicator.
         if self.duplicator.is_none() {
             // No duplicator, lets ensure we have one, or just fail this capture.
@@ -351,7 +371,9 @@ impl CaptureWin {
                     return Ok(()); // likely no draw events since last frame, return ok since we have a frame to show.
                 }
                 // Well, we timed out, and we don't have any image... bummer.
-                return Err(windows::core::Error::OK); // Just to make an error without failure information.
+                return Err(ScreenCaptureError::Transient {
+                    msg: format!("{r:?}"),
+                });
             } else {
                 println!("Unhandled error!: {:?}", r);
                 unsafe {
@@ -360,7 +382,7 @@ impl CaptureWin {
                         .expect("Should have a duplicator.")
                         .ReleaseFrame()?;
                 }
-                return Err(windows::core::Error::OK); // Just to make an error without failure information.
+                return Err(r.clone().into()); // Just to make an error without failure information.
             }
         }
 
@@ -368,7 +390,7 @@ impl CaptureWin {
         let _ok = res.expect("Should be ok.");
 
         // Now, we can do something with textures and all that.
-        let texture: Result<ID3D11Texture2D> = pp_desktop_resource
+        let texture: Result<ID3D11Texture2D, WinError> = pp_desktop_resource
             .as_ref()
             .expect("Should be resource")
             .cast();
@@ -425,7 +447,7 @@ impl CaptureWin {
         Ok(())
     }
 
-    fn image(&mut self) -> Result<ImageWin> {
+    fn image(&mut self) -> Result<ImageWin, WinError> {
         // Need to make a new image here now, because we can't copy into mapped images, so we need to ensure we hand off a
         // fresh image.
         let image = self
@@ -486,12 +508,20 @@ impl Capture for CaptureWin {
         }
     }
 
-    fn prepare_capture(&mut self, display: u32, x: u32, y: u32, width: u32, height: u32) -> bool {
-        return CaptureWin::prepare(self, display, x, y, width, height);
+    fn prepare_capture(
+        &mut self,
+        display: u32,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<(), ScreenCaptureError> {
+        CaptureWin::prepare(self, display, x, y, width, height).map_err(|v| v.into())
     }
 }
 
-pub fn capture() -> Box<dyn Capture> {
-    let z = Box::<CaptureWin>::new(CaptureWin::new());
-    z
+pub fn capture() -> Result<Box<dyn Capture>, ScreenCaptureError> {
+    let capture_win = CaptureWin::new()?;
+    let z = Box::<CaptureWin>::new(capture_win);
+    Ok(z)
 }
