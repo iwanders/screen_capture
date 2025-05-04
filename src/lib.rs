@@ -22,14 +22,26 @@ pub mod util;
 
 pub use capturer::{CaptureConfig, CaptureSpecification, Capturer, ThreadedCapturer};
 
+use image::{GenericImageView, Pixel, Rgba};
+
 use thiserror::Error;
+
+#[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
+#[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
+mod backend;
+
+#[cfg(any(doc, all(target_arch = "x86_64", target_feature = "avx2")))]
+pub mod simd;
+
+use crate::raster_image::RasterImageBGR;
 
 /// The errors that may be returned, strings hold platform specific error messages.
 #[derive(Error, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone)]
 pub enum ScreenCaptureError {
     /// An issue happened during initialisation.
     ///
-    /// This points at a fundamental issue that needs to be resolved, like xshm not existing.
+    /// This points at a fundamental issue that needs to be resolved, like xshm not existing. Or capturing an image
+    /// before executing prepare capture.
     #[error("initialisation failed: {msg}")]
     Initialisation { msg: String },
     /// Permission to capture was denied.
@@ -44,16 +56,10 @@ pub enum ScreenCaptureError {
     Transient { msg: String },
 }
 
-#[cfg_attr(target_os = "linux", path = "./linux/linux.rs")]
-#[cfg_attr(target_os = "windows", path = "./windows/windows.rs")]
-mod backend;
-
 /// Get a new instance of the screen grabber for this platform.
 pub fn capture() -> Result<Box<dyn Capture>, ScreenCaptureError> {
     backend::capture()
 }
-
-use crate::raster_image::RasterImageBGR;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 #[repr(C)]
@@ -87,9 +93,6 @@ pub struct Resolution {
     pub width: u32,
     pub height: u32,
 }
-
-#[cfg(any(doc, all(target_arch = "x86_64", target_feature = "avx2")))]
-pub mod simd;
 
 /// Trait for something that represents an BGR image.
 ///
@@ -183,8 +186,6 @@ pub trait ImageBGR {
     }
 }
 
-use image::{GenericImageView, Pixel, Rgba};
-
 impl GenericImageView for Box<dyn ImageBGR> {
     type Pixel = Rgba<u8>;
     fn dimensions(&self) -> (u32, u32) {
@@ -207,11 +208,11 @@ impl Clone for Box<dyn ImageBGR> {
 /// Trait to which the desktop frame grabbers adhere.
 pub trait Capture {
     /// Capture the frame into an internal buffer, creating a 'snapshot'
-    fn capture_image(&mut self) -> bool;
+    fn capture_image(&mut self) -> Result<(), ScreenCaptureError>;
 
     /// Retrieve the image for access. By default this may be backed by the internal buffer
     /// created by capture_image.
-    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ()>;
+    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ScreenCaptureError>;
 
     /// Retrieve the current full desktop resolution.
     fn resolution(&mut self) -> Resolution;

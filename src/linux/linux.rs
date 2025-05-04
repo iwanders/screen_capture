@@ -199,12 +199,14 @@ impl CaptureX11 {
 }
 
 impl Capture for CaptureX11 {
-    fn capture_image(&mut self) -> bool {
+    fn capture_image(&mut self) -> Result<(), ScreenCaptureError> {
         self.poison_image();
         if self.image.is_none() {
-            return false;
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "prepare capture wasn't called before capture".to_owned(),
+            });
         }
-        unsafe {
+        let is_success = unsafe {
             XShmGetImage(
                 self.display,
                 self.window,
@@ -213,20 +215,31 @@ impl Capture for CaptureX11 {
                 self.pos_y as i32,
                 AllPlanes,
             )
+        };
+
+        if is_success {
+            Ok(())
+        } else {
+            return Err(ScreenCaptureError::Transient {
+                msg: "XShmGetImage failed".to_owned(),
+            });
         }
     }
-    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ()> {
+
+    fn image(&mut self) -> Result<Box<dyn ImageBGR>, ScreenCaptureError> {
         self.poison_image();
-        if self.image.is_some() {
-            let new_bool = Rc::new(false.into());
-            self.image_poison = Rc::clone(&new_bool);
-            Ok(Box::<ImageX11>::new(ImageX11 {
-                image: self.image.unwrap(),
-                poisoned: new_bool,
-            }))
-        } else {
-            Err(())
+        if self.image.is_none() {
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "prepare capture wasn't called before capture".to_owned(),
+            });
         }
+
+        let new_bool = Rc::new(false.into());
+        self.image_poison = Rc::clone(&new_bool);
+        Ok(Box::<ImageX11>::new(ImageX11 {
+            image: self.image.unwrap(),
+            poisoned: new_bool,
+        }))
     }
 
     fn resolution(&mut self) -> Resolution {
@@ -237,6 +250,8 @@ impl Capture for CaptureX11 {
         let mut border_width: u32 = 0;
         let mut depth: u32 = 0;
         let mut window: Window = Default::default();
+
+        // XGetGeometry returns a status, but we don't handle that right now.
         unsafe {
             XGetGeometry(
                 self.display,
@@ -249,19 +264,20 @@ impl Capture for CaptureX11 {
                 &mut border_width,
                 &mut depth,
             );
-        }
+        };
 
         Resolution { width, height }
     }
 
     fn prepare_capture(
         &mut self,
-        _display: u32,
+        display: u32,
         x: u32,
         y: u32,
         width: u32,
         height: u32,
     ) -> Result<(), ScreenCaptureError> {
+        let _ = display;
         CaptureX11::prepare(self, x, y, width, height)
     }
 }
