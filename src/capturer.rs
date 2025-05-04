@@ -153,13 +153,7 @@ impl Capturer {
         self.update_resolution()?;
 
         // Now, we are ready to try and get the image:
-        let res = self.grabber.capture_image();
-
-        if !res {
-            return Err(ScreenCaptureError::Initialisation {
-                msg: "failed to capture image".to_owned(),
-            });
-        }
+        let res = self.grabber.capture_image()?;
 
         // Then, we can grab the actual image.
         Ok(self.grabber.image().unwrap())

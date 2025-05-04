@@ -71,11 +71,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let duration = start.elapsed();
     println!("2nd capture time : {:?}", duration);
 
-    while !res {
+    while let Err(e) = res {
         res = grabber.capture_image();
     }
 
-    println!("Capture tried to capture image, succes? {}", res);
+    println!("Capture tried to capture image, succes? {:?}", res);
     let img = grabber.image().expect("grab image should succeed");
 
     // res = grabber.capture_image();
@@ -253,7 +253,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for _i in 0..2 {
         let res = grabber.capture_image();
-        println!("Capture tried to capture image, succes? {}", res);
+        println!("Capture tried to capture image, succes? {:?}", res);
         let img = grabber.image().expect("should succeed");
         println!(
             "last pixel: {:#?}",

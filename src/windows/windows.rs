@@ -26,11 +26,15 @@ struct ImageWin {
     height: u32,
 }
 
-impl From<windows::core::Error> for ScreenCaptureError {
-    fn from(v: windows::core::Error) -> Self {
-        ScreenCaptureError::Transient {
-            msg: format!("{v:?}"),
-        }
+fn initialisation_error(v: WinError) -> ScreenCaptureError {
+    ScreenCaptureError::Initialisation {
+        msg: format!("{v:?}"),
+    }
+}
+
+fn lost_capture_error(v: WinError) -> ScreenCaptureError {
+    ScreenCaptureError::LostCapture {
+        msg: format!("{v:?}"),
     }
 }
 
@@ -160,17 +164,13 @@ fn from_wide(arr: &[u16]) -> OsString {
 
 impl CaptureWin {
     fn init_adaptor(&mut self) -> Result<(), ScreenCaptureError> {
-        // let (factory, device) = create_device().expect("Must have a device.");
-        // let adaptor = hardware_adapter(&factory).expect("Must have an adaptor.");
-        // self.adaptor = Some(adaptor);
-
         let dxgi_factory_flags = DXGI_CREATE_FACTORY_DEBUG;
-        let factory: IDXGIFactory4 = unsafe { CreateDXGIFactory2(dxgi_factory_flags) }?;
+        let factory: IDXGIFactory4 =
+            unsafe { CreateDXGIFactory2(dxgi_factory_flags) }.map_err(initialisation_error)?;
 
         for i in 0.. {
-            let adapter = unsafe { factory.EnumAdapters1(i)? };
-
-            let desc = unsafe { adapter.GetDesc1()? };
+            let adapter = unsafe { factory.EnumAdapters1(i).map_err(initialisation_error)? };
+            let desc = unsafe { adapter.GetDesc1().map_err(initialisation_error)? };
 
             // Skip the software adaptor.
             if (DXGI_ADAPTER_FLAG::from(desc.Flags) & DXGI_ADAPTER_FLAG_SOFTWARE)
@@ -229,18 +229,20 @@ impl CaptureWin {
     fn init_output(&mut self, desired: u32) -> Result<(), ScreenCaptureError> {
         // Obtain the video outputs used by this adaptor.
         // Is the primary screen always the zeroth index??
-        let adaptor = self
-            .adaptor
-            .as_ref()
-            .expect("Must be called with an adaptor");
+        if self.adaptor.is_none() {
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "cannot prepare without valid adapter".to_owned(),
+            });
+        }
+        let adaptor = self.adaptor.as_ref().unwrap();
         let mut output_index: u32 = 0;
         unsafe {
             let mut res = adaptor.EnumOutputs(output_index);
             while res.is_ok() {
-                // println!("idxgiouptut:");
                 let output = res.unwrap();
-                let desc = output.GetDesc()?;
+                let desc = output.GetDesc().map_err(initialisation_error)?;
                 if desired == output_index {
+                    /*
                     println!(
                         "Found desired output: {}, name: {}, monitor: {}",
                         output_index,
@@ -249,6 +251,7 @@ impl CaptureWin {
                             .unwrap_or("Unknown"),
                         desc.Monitor
                     );
+                    */
                     self.output = Some(output);
                     return Ok(());
                 }
@@ -263,31 +266,32 @@ impl CaptureWin {
     }
 
     fn init_duplicator(&mut self) -> Result<(), ScreenCaptureError> {
-        let output = self.output.as_ref().expect("Must have an output");
+        if self.output.is_none() {
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "cannot init duplicator without valid output".to_owned(),
+            });
+        }
+        let output = self.output.as_ref().unwrap();
         self.duplicator = None;
 
         unsafe {
-            // let output1: &IDXGIOutput1 = std::mem::transmute::<&IDXGIOutput, &IDXGIOutput1>(output);
-            // let desc = output.GetDesc()?;
-            // println!(
-            // "Device: {:?}, monitor: {}",
-            // from_wide(&desc.DeviceName),
-            // desc.Monitor
-            // );
-
             let output1: Result<IDXGIOutput1, WinError> = output.cast();
-            let output1 = output1.expect("Should have succeeded.");
+            let output1 = output1.expect("output should be convertible to IDXGIOutput1");
             // let output1 = output.GetParent::<&IDXGIOutput1>().expect("Yes");
             // From C++, the following can fail with:
             //  E_ACCESSDENIED, when on fullscreen uac prompt
             //  DXGI_ERROR_SESSION_DISCONNECTED, somehow.
-            self.duplicator =
-                Some(output1.DuplicateOutput(self.device.as_ref().expect("Must have a device"))?);
+            if self.device.is_none() {
+                return Err(ScreenCaptureError::Initialisation {
+                    msg: "device is none, is the adaptor initialised?".to_owned(),
+                });
+            }
+            let duplicator = output1
+                .DuplicateOutput(self.device.as_ref().unwrap())
+                .map_err(initialisation_error)?;
+            self.duplicator = Some(duplicator);
 
-            let duplicator = self
-                .duplicator
-                .as_ref()
-                .expect("Must have a duplicator now");
+            let duplicator = self.duplicator.as_ref().unwrap();
             let mut desc: DXGI_OUTDUPL_DESC = DXGI_OUTDUPL_DESC {
                 ModeDesc: DXGI_MODE_DESC {
                     Width: 0,
@@ -340,9 +344,11 @@ impl CaptureWin {
     pub fn capture(&mut self) -> Result<(), ScreenCaptureError> {
         // Ok, so, check if we have a duplicator.
         if self.duplicator.is_none() {
-            // No duplicator, lets ensure we have one, or just fail this capture.
-            self.init_duplicator()?;
+            return Err(ScreenCaptureError::Initialisation {
+                msg: format!("no duplicator to capture image, call prepare capture "),
+            });
         }
+        let duplicator = self.duplicator.as_ref().unwrap();
 
         // Now, we can acquire the next frame.
         let timeout_in_ms: u32 = 100;
@@ -350,10 +356,7 @@ impl CaptureWin {
             Default::default();
         let mut pp_desktop_resource: Option<IDXGIResource> = None;
         let res = unsafe {
-            self.duplicator
-                .as_ref()
-                .expect("Must have duplicator")
-                .AcquireNextFrame(timeout_in_ms, &mut frame_info, &mut pp_desktop_resource)
+            duplicator.AcquireNextFrame(timeout_in_ms, &mut frame_info, &mut pp_desktop_resource)
         };
 
         if let Err(ref r) = res {
@@ -362,8 +365,9 @@ impl CaptureWin {
             if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_ACCESS_LOST {
                 // This can happen when the resolution changes, or when we the context changes / full screen application
                 // or a d3d11 instance starts, in that case we have to recreate the duplicator.
-                self.init_duplicator()?;
-                return self.capture();
+                return Err(ScreenCaptureError::LostCapture {
+                    msg: format!("{r:?}"),
+                });
             } else if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_WAIT_TIMEOUT {
                 // Timeout may happen if no changes occured from the last frame.
                 // This means it is perfectly ok to return the current image.
@@ -377,12 +381,12 @@ impl CaptureWin {
             } else {
                 println!("Unhandled error!: {:?}", r);
                 unsafe {
-                    self.duplicator
-                        .as_ref()
-                        .expect("Should have a duplicator.")
-                        .ReleaseFrame()?;
+                    // Ignore the frame release status.
+                    let _ = self.duplicator.as_ref().unwrap().ReleaseFrame();
                 }
-                return Err(r.clone().into()); // Just to make an error without failure information.
+                return Err(ScreenCaptureError::Transient {
+                    msg: format!("{r:?}"),
+                });
             }
         }
 
@@ -429,7 +433,8 @@ impl CaptureWin {
                     .CreateTexture2D(
                         &new_img,
                         0 as *const windows::Win32::Graphics::Direct3D11::D3D11_SUBRESOURCE_DATA,
-                    )?
+                    )
+                    .map_err(lost_capture_error)?
             });
         }
 
@@ -439,21 +444,20 @@ impl CaptureWin {
                 .as_ref()
                 .expect("Should have a device context.")
                 .CopyResource(self.image.as_ref().unwrap(), frame);
-            self.duplicator
-                .as_ref()
-                .expect("Should have a duplicator.")
-                .ReleaseFrame()?;
+            let _ = self.duplicator.as_ref().unwrap().ReleaseFrame();
         }
         Ok(())
     }
 
-    fn image(&mut self) -> Result<ImageWin, WinError> {
+    fn image(&mut self) -> Result<ImageWin, ScreenCaptureError> {
         // Need to make a new image here now, because we can't copy into mapped images, so we need to ensure we hand off a
         // fresh image.
-        let image = self
-            .image
-            .as_ref()
-            .expect("Must have an image, can't retrieve one without.");
+        if self.image.is_none() {
+            return Err(ScreenCaptureError::Initialisation {
+                msg: "capture needs to succeed before image retrieval".to_owned(),
+            });
+        }
+        let image = self.image.as_ref().unwrap();
 
         let mut tex_desc: windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE2D_DESC =
             Default::default();
@@ -474,10 +478,12 @@ impl CaptureWin {
         let device = self.device.as_ref().expect("Must have a device");
         let new_texture = unsafe {
             // Need to wrap this into a releasing thing.
-            device.CreateTexture2D(
-                &new_img,
-                0 as *const windows::Win32::Graphics::Direct3D11::D3D11_SUBRESOURCE_DATA,
-            )?
+            device
+                .CreateTexture2D(
+                    &new_img,
+                    0 as *const windows::Win32::Graphics::Direct3D11::D3D11_SUBRESOURCE_DATA,
+                )
+                .map_err(lost_capture_error)?
         };
         unsafe {
             self.device_context
@@ -491,13 +497,13 @@ impl CaptureWin {
 }
 
 impl Capture for CaptureWin {
-    fn capture_image(&mut self) -> bool {
+    fn capture_image(&mut self) -> Result<(), ScreenCaptureError> {
         let res = CaptureWin::capture(self);
-        return res.is_ok();
+        res.map_err(|v| Into::<ScreenCaptureError>::into(v))
     }
-    fn image(&mut self) -> std::result::Result<Box<dyn ImageBGR>, ()> {
+    fn image(&mut self) -> std::result::Result<Box<dyn ImageBGR>, ScreenCaptureError> {
         Ok(Box::<ImageWin>::new(
-            CaptureWin::image(self).map_err(|_| ())?,
+            CaptureWin::image(self).map_err(|v| Into::<ScreenCaptureError>::into(v))?,
         ))
     }
 
@@ -516,7 +522,7 @@ impl Capture for CaptureWin {
         width: u32,
         height: u32,
     ) -> Result<(), ScreenCaptureError> {
-        CaptureWin::prepare(self, display, x, y, width, height).map_err(|v| v.into())
+        CaptureWin::prepare(self, display, x, y, width, height).map_err(initialisation_error)
     }
 }
 

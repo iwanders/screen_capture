@@ -40,18 +40,31 @@ use crate::raster_image::RasterImageBGR;
 pub enum ScreenCaptureError {
     /// An issue happened during initialisation.
     ///
-    /// This points at a fundamental issue that needs to be resolved, like xshm not existing. Or capturing an image
-    /// before executing prepare capture.
+    /// This points at a fundamental issue that needs to be resolved. Or capturing an image
+    /// before executing prepare capture. This is either a logic error or a configuration / setup error.
+    /// On linux it may happen if the shared memory extension doesn't exist. On Windows this may happen if the necessary
+    /// direct 3d objects can't be instantiated.
     #[error("initialisation failed: {msg}")]
     Initialisation { msg: String },
+
     /// Permission to capture was denied.
     ///
     /// This may be temporary, for example in Windows' UAC prompt.
     #[error("no permission to capture: {msg}")]
     PermissionDenied { msg: String },
+
+    /// Lost the capture device.
+    ///
+    /// The duplication interface lost became invalid. On linux this may indicate a resolution switch. On Windows this
+    /// can be a desktop switch, mode change or switch between DWM on and off or a fullscreen application.
+    /// If we get invalid call on anything, this is also returned, because it means something went invalid and a
+    /// re-initialisation may resolve the situation.
+    #[error("lost capture: {msg}")]
+    LostCapture { msg: String },
+
     /// A temporary failure.
     ///
-    /// This is only ever used by the actual image capture.
+    /// This error is used by things that go away by themselves.
     #[error("a transient failure: {msg}")]
     Transient { msg: String },
 }
