@@ -359,12 +359,21 @@ impl CaptureWin {
             duplicator.AcquireNextFrame(timeout_in_ms, &mut frame_info, &mut pp_desktop_resource)
         };
 
+        let release_frame = || {
+            unsafe {
+                // Ignore the frame release status.
+                if let Some(duplicator) = self.duplicator.as_ref() {
+                    let _ = duplicator.ReleaseFrame();
+                }
+            }
+        };
         if let Err(ref r) = res {
             // println!("got an error error!: {:?}", r);
             // Error handling from the c++ implementation.
             if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_ACCESS_LOST {
                 // This can happen when the resolution changes, or when we the context changes / full screen application
                 // or a d3d11 instance starts, in that case we have to recreate the duplicator.
+                release_frame();
                 return Err(ScreenCaptureError::LostCapture {
                     msg: format!("{r:?}"),
                 });
@@ -378,12 +387,15 @@ impl CaptureWin {
                 return Err(ScreenCaptureError::Transient {
                     msg: format!("{r:?}"),
                 });
+            } else if r.code() == windows::Win32::Foundation::D2DERR_INVALID_CALL {
+                release_frame();
+                // Some object went invalid, return an lost capture such that we re initialise.
+                return Err(ScreenCaptureError::LostCapture {
+                    msg: format!("{r:?}"),
+                });
             } else {
                 println!("Unhandled error!: {:?}", r);
-                unsafe {
-                    // Ignore the frame release status.
-                    let _ = self.duplicator.as_ref().unwrap().ReleaseFrame();
-                }
+                release_frame();
                 return Err(ScreenCaptureError::Transient {
                     msg: format!("{r:?}"),
                 });
