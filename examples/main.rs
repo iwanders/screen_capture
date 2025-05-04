@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::sleep(std::time::Duration::from_millis(1000));
 
     let start = Instant::now();
-    grabber.capture_image();
+    grabber.capture_image()?;
     let duration = start.elapsed();
     println!("Capture time : {:?}", duration);
 
@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("2nd capture time : {:?}", duration);
 
     while let Err(e) = res {
+        println!("error: {e:?}");
         res = grabber.capture_image();
     }
 

@@ -240,9 +240,9 @@ impl CaptureWin {
             let mut res = adaptor.EnumOutputs(output_index);
             while res.is_ok() {
                 let output = res.unwrap();
-                let desc = output.GetDesc().map_err(initialisation_error)?;
                 if desired == output_index {
                     /*
+                    let desc = output.GetDesc().map_err(initialisation_error)?;
                     println!(
                         "Found desired output: {}, name: {}, monitor: {}",
                         output_index,
