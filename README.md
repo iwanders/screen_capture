@@ -12,6 +12,13 @@ Both on Windows and Linux this makes it almost a zero overhead capture system, a
 To convert it to a normal `image::RgbaImage`, the `to_rgba()` method can be called on the `dyn ImageBGR` object. This performs a color space conversion as well as creating an owned copy of the image. There is some [hand written simd](./src/lib.rs#L203-L288) to do this conversion in a fast way. It loads 8 BGRA pixels into one SIMD vector (256), then performs a single shuffle operation with a fixed mask, then an OR operation to ensure alpha channel is fully opaque, after which the RGBA pixels are stored back to memory. This fast routine does require compiling this crate with avx2, so if you do need the color conversion be sure to enable that. If avx2 is not available, it falls back to a simple implementation.
 
 
+## Development
+Building the Windows binaries from Linux:
+```
+rustup target add x86_64-pc-windows-gnu
+cargo build --target x86_64-pc-windows-gnu --example main
+```
+
 ## License
 License is `MIT OR Apache-2.0`.
 
