@@ -38,6 +38,29 @@ fn lost_capture_error(v: WinError) -> ScreenCaptureError {
     }
 }
 
+trait PrintingExpect {
+    type Inner;
+    fn expect_with(self, msg: &'static str) -> Self::Inner;
+}
+impl<T> PrintingExpect for Option<T> {
+    type Inner = T;
+    fn expect_with(self, msg: &'static str) -> Self::Inner {
+        if self.is_none() {
+            println!("expect failed: {msg}");
+        }
+        self.unwrap()
+    }
+}
+impl<T, U: std::fmt::Debug> PrintingExpect for Result<T, U> {
+    type Inner = T;
+    fn expect_with(self, msg: &'static str) -> Self::Inner {
+        if self.is_ok() {
+            println!("expect failed: {msg}");
+        }
+        self.unwrap()
+    }
+}
+
 impl ImageWin {
     fn new(texture: ID3D11Texture2D) -> Self {
         // Need to map the texture here to ensure we can read from it later.
@@ -56,11 +79,11 @@ impl ImageWin {
         unsafe {
             let mut device: Option<ID3D11Device> = None;
             texture.GetDevice(&mut device);
-            let device = device.expect("Should have a device associated to it.");
+            let device = device.expect_with("Should have a device associated to it.");
 
             let mut context: Option<ID3D11DeviceContext> = None;
             device.GetImmediateContext(&mut context);
-            let context = context.expect("Should have a context associated to it.");
+            let context = context.expect_with("Should have a context associated to it.");
 
             // Now that we have the context, we can perform the mapping.
             mapped = context
@@ -70,7 +93,7 @@ impl ImageWin {
                     D3D11_MAP_READ,
                     0,
                 )
-                .expect("Mapping should succeed"); // MapFlags
+                .expect_with("Mapping should succeed"); // MapFlags
         }
         ImageWin {
             width,
@@ -286,7 +309,7 @@ impl CaptureWin {
 
         unsafe {
             let output1: Result<IDXGIOutput1, WinError> = output.cast();
-            let output1 = output1.expect("output should be convertible to IDXGIOutput1");
+            let output1 = output1.expect_with("output should be convertible to IDXGIOutput1");
             // let output1 = output.GetParent::<&IDXGIOutput1>().expect("Yes");
             // From C++, the following can fail with:
             //  E_ACCESSDENIED, when on fullscreen uac prompt
@@ -345,9 +368,9 @@ impl CaptureWin {
         _height: u32,
     ) -> Result<(), WinError> {
         self.init_output(display)
-            .expect("Should be able to setup the output.");
+            .expect_with("Should be able to setup the output.");
         self.init_duplicator()
-            .expect("Should be able to get the duplicator.");
+            .expect_with("Should be able to get the duplicator.");
         Ok(())
     }
 
@@ -417,14 +440,14 @@ impl CaptureWin {
         }
 
         // Well, we got here, res must be ok.
-        let _ok = res.expect("Should be ok.");
+        let _ok = res.expect_with("Should be ok.");
 
         // Now, we can do something with textures and all that.
         let texture: Result<ID3D11Texture2D, WinError> = pp_desktop_resource
             .as_ref()
-            .expect("Should be resource")
+            .expect_with("Should be resource")
             .cast();
-        let frame = texture.expect("Must be a texture.");
+        let frame = texture.expect_with("Must be a texture.");
         let mut tex_desc: windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE2D_DESC =
             Default::default();
         unsafe { frame.GetDesc(&mut tex_desc) };
@@ -455,7 +478,7 @@ impl CaptureWin {
             self.image = Some(unsafe {
                 self.device
                     .as_ref()
-                    .expect("Must have device")
+                    .expect_with("Must have device")
                     .CreateTexture2D(
                         &new_img,
                         0 as *const windows::Win32::Graphics::Direct3D11::D3D11_SUBRESOURCE_DATA,
@@ -468,7 +491,7 @@ impl CaptureWin {
         unsafe {
             self.device_context
                 .as_ref()
-                .expect("Should have a device context.")
+                .expect_with("Should have a device context.")
                 .CopyResource(self.image.as_ref().unwrap(), frame);
             let _ = self.duplicator.as_ref().unwrap().ReleaseFrame();
         }
@@ -501,7 +524,7 @@ impl CaptureWin {
         new_img.SampleDesc.Count = 1; // from C++ side.
         new_img.Usage = windows::Win32::Graphics::Direct3D11::D3D11_USAGE_STAGING;
         new_img.CPUAccessFlags = windows::Win32::Graphics::Direct3D11::D3D11_CPU_ACCESS_READ;
-        let device = self.device.as_ref().expect("Must have a device");
+        let device = self.device.as_ref().expect_with("Must have a device");
         let new_texture = unsafe {
             // Need to wrap this into a releasing thing.
             device
@@ -514,7 +537,7 @@ impl CaptureWin {
         unsafe {
             self.device_context
                 .as_ref()
-                .expect("Should have a device context.")
+                .expect_with("Should have a device context.")
                 .CopyResource(&new_texture, image);
         }
 
