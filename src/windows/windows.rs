@@ -150,7 +150,18 @@ struct CaptureWin {
 }
 
 impl Drop for CaptureWin {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        unsafe {
+            // Drop the things we can actually release.
+            if let Some(duplicator) = self.duplicator.as_ref() {
+                let _ = duplicator.ReleaseFrame();
+            }
+
+            if let Some(output) = self.output.as_ref() {
+                let _ = output.ReleaseOwnership();
+            }
+        }
+    }
 }
 
 use std::ffi::OsString;
@@ -238,8 +249,7 @@ impl CaptureWin {
         let mut output_index: u32 = 0;
         unsafe {
             let mut res = adaptor.EnumOutputs(output_index);
-            while res.is_ok() {
-                let output = res.unwrap();
+            while let Ok(output) = res {
                 if desired == output_index {
                     /*
                     let desc = output.GetDesc().map_err(initialisation_error)?;
@@ -374,6 +384,10 @@ impl CaptureWin {
                 // This can happen when the resolution changes, or when we the context changes / full screen application
                 // or a d3d11 instance starts, in that case we have to recreate the duplicator.
                 release_frame();
+                // In this situation, the application must release the IDXGIOutputDuplication interface and
+                // create a new IDXGIOutputDuplication for the new content.
+                // self.duplicator = None;
+                // The other side will just re-initialise.
                 return Err(ScreenCaptureError::LostCapture {
                     msg: format!("{r:?}"),
                 });
