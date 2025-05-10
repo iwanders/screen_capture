@@ -46,7 +46,7 @@ impl<T> PrintingExpect for Option<T> {
     type Inner = T;
     fn expect_with(self, msg: &'static str) -> Self::Inner {
         if self.is_none() {
-            println!("expect failed: {msg}");
+            println!("option expect failed: {msg}");
         }
         self.unwrap()
     }
@@ -54,8 +54,8 @@ impl<T> PrintingExpect for Option<T> {
 impl<T, U: std::fmt::Debug> PrintingExpect for Result<T, U> {
     type Inner = T;
     fn expect_with(self, msg: &'static str) -> Self::Inner {
-        if self.is_ok() {
-            println!("expect failed: {msg}");
+        if !self.is_ok() {
+            println!("result expect failed: {msg}");
         }
         self.unwrap()
     }
