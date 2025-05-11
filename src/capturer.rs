@@ -200,7 +200,7 @@ impl std::fmt::Debug for CaptureInfo {
 impl Default for CaptureInfo {
     fn default() -> Self {
         Self {
-            result: Err(ScreenCaptureError::Initialisation {
+            result: Err(ScreenCaptureError::InitialisationError {
                 msg: "not initialised".to_owned(),
             }),
             time: std::time::SystemTime::now(),

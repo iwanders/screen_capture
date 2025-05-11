@@ -27,13 +27,19 @@ struct ImageWin {
 }
 
 fn initialisation_error(v: WinError) -> ScreenCaptureError {
-    ScreenCaptureError::Initialisation {
+    ScreenCaptureError::InitialisationError {
+        msg: format!("{v:?}"),
+    }
+}
+
+fn logic_error(v: WinError) -> ScreenCaptureError {
+    ScreenCaptureError::LogicError {
         msg: format!("{v:?}"),
     }
 }
 
 fn lost_capture_error(v: WinError) -> ScreenCaptureError {
-    ScreenCaptureError::LostCapture {
+    ScreenCaptureError::LostCaptureError {
         msg: format!("{v:?}"),
     }
 }
@@ -255,7 +261,7 @@ impl CaptureWin {
             };
         }
 
-        Err(ScreenCaptureError::Initialisation {
+        Err(ScreenCaptureError::InitialisationError {
             msg: "failed to find adapter".to_owned(),
         })
     }
@@ -264,7 +270,7 @@ impl CaptureWin {
         // Obtain the video outputs used by this adaptor.
         // Is the primary screen always the zeroth index??
         if self.adaptor.is_none() {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::InitialisationError {
                 msg: "cannot prepare without valid adapter".to_owned(),
             });
         }
@@ -293,14 +299,14 @@ impl CaptureWin {
             }
         }
 
-        Err(ScreenCaptureError::Initialisation {
+        Err(ScreenCaptureError::InitialisationError {
             msg: "failed initialise output".to_owned(),
         })
     }
 
     fn init_duplicator(&mut self) -> Result<(), ScreenCaptureError> {
         if self.output.is_none() {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::LogicError {
                 msg: "cannot init duplicator without valid output".to_owned(),
             });
         }
@@ -315,13 +321,13 @@ impl CaptureWin {
             //  E_ACCESSDENIED, when on fullscreen uac prompt
             //  DXGI_ERROR_SESSION_DISCONNECTED, somehow.
             if self.device.is_none() {
-                return Err(ScreenCaptureError::Initialisation {
+                return Err(ScreenCaptureError::LogicError {
                     msg: "device is none, is the adaptor initialised?".to_owned(),
                 });
             }
             let duplicator = output1
                 .DuplicateOutput(self.device.as_ref().unwrap())
-                .map_err(initialisation_error)?;
+                .map_err(logic_error)?;
             self.duplicator = Some(duplicator);
 
             let duplicator = self.duplicator.as_ref().unwrap();
@@ -375,7 +381,7 @@ impl CaptureWin {
     pub fn capture(&mut self) -> Result<(), ScreenCaptureError> {
         // Ok, so, check if we have a duplicator.
         if self.duplicator.is_none() {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::LogicError {
                 msg: format!("no duplicator to capture image, call prepare capture "),
             });
         }
@@ -409,7 +415,7 @@ impl CaptureWin {
                 // create a new IDXGIOutputDuplication for the new content.
                 // self.duplicator = None;
                 // The other side will just re-initialise.
-                return Err(ScreenCaptureError::LostCapture {
+                return Err(ScreenCaptureError::LostCaptureError {
                     msg: format!("{r:?}"),
                 });
             } else if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_WAIT_TIMEOUT {
@@ -419,19 +425,19 @@ impl CaptureWin {
                     return Ok(()); // likely no draw events since last frame, return ok since we have a frame to show.
                 }
                 // Well, we timed out, and we don't have any image... bummer.
-                return Err(ScreenCaptureError::Transient {
+                return Err(ScreenCaptureError::TransientError {
                     msg: format!("{r:?}"),
                 });
             } else if r.code() == windows::Win32::Foundation::D2DERR_INVALID_CALL {
                 release_frame();
                 // Some object went invalid, return an lost capture such that we re initialise.
-                return Err(ScreenCaptureError::LostCapture {
+                return Err(ScreenCaptureError::LostCaptureError {
                     msg: format!("{r:?}"),
                 });
             } else {
                 println!("Unhandled error!: {:?}", r);
                 release_frame();
-                return Err(ScreenCaptureError::Transient {
+                return Err(ScreenCaptureError::LogicError {
                     msg: format!("{r:?}"),
                 });
             }
@@ -500,7 +506,7 @@ impl CaptureWin {
         // Need to make a new image here now, because we can't copy into mapped images, so we need to ensure we hand off a
         // fresh image.
         if self.image.is_none() {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::LogicError {
                 msg: "capture needs to succeed before image retrieval".to_owned(),
             });
         }

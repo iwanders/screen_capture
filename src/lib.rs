@@ -40,33 +40,34 @@ use crate::raster_image::RasterImageBGR;
 pub enum ScreenCaptureError {
     /// An issue happened during initialisation.
     ///
-    /// This points at a fundamental issue that needs to be resolved. Or capturing an image
-    /// before executing prepare capture. This is either a logic error or a configuration / setup error.
-    /// On linux it may happen if the shared memory extension doesn't exist. On Windows this may happen if the necessary
-    /// direct 3d objects can't be instantiated.
+    /// This points at a fundamental issue that occured. On linux it may happen if the shared memory extension doesn't
+    /// exist. On Windows this may happen if the necessary direct 3d objects can't be instantiated.
     #[error("initialisation failed: {msg}")]
-    Initialisation { msg: String },
+    InitialisationError { msg: String },
 
-    /// Permission to capture was denied.
+    /// A logic error occured.
     ///
-    /// This may be temporary, for example in Windows' UAC prompt.
-    #[error("no permission to capture: {msg}")]
-    PermissionDenied { msg: String },
+    /// This is always a bug in the usage of the screen capture object. Like trying to obtain an image without
+    /// calling prepare first. Or capturing an image after the capture reported lost. This also happens if the
+    /// internal state of the screen capture is incorrect and violated assumptions.
+    #[error("initialisation failed: {msg}")]
+    LogicError { msg: String },
 
     /// Lost the capture device.
     ///
+    /// This requires a re-initialisation of the screen capture device.
     /// The duplication interface lost became invalid. On linux this may indicate a resolution switch. On Windows this
     /// can be a desktop switch, mode change or switch between DWM on and off or a fullscreen application.
-    /// If we get invalid call on anything, this is also returned, because it means something went invalid and a
-    /// re-initialisation may resolve the situation.
+    /// If we get invalid call on anything, this is also returned.
     #[error("lost capture: {msg}")]
-    LostCapture { msg: String },
+    LostCaptureError { msg: String },
 
     /// A temporary failure.
     ///
-    /// This error is used by things that go away by themselves.
+    /// This is a temporary failure on capturing an image, either because it timed out or because nothing changed.
+    /// The capture failed, but nothing serious went wrong and the next capture could succeed again.
     #[error("a transient failure: {msg}")]
-    Transient { msg: String },
+    TransientError { msg: String },
 }
 
 /// Get a new instance of the screen grabber for this platform.
