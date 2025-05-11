@@ -96,7 +96,7 @@ impl CaptureX11 {
         unsafe {
             let display = XOpenDisplay(std::ptr::null::<libc::c_char>());
             if XShmQueryExtension(display) == 0 {
-                return Err(ScreenCaptureError::Initialisation {
+                return Err(ScreenCaptureError::InitialisationError {
                     msg: "missing XShm extension".to_string(),
                 });
             }
@@ -129,7 +129,7 @@ impl CaptureX11 {
         let mut attributes = XWindowAttributes::default();
         let status = unsafe { XGetWindowAttributes(self.display, self.window, &mut attributes) };
         if status != 1 {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::InitialisationError {
                 msg: "failed to retrieve window attributes".to_string(),
             });
         }
@@ -189,7 +189,7 @@ impl CaptureX11 {
 
             // And now, we just have to attach the shared memory.
             if XShmAttach(self.display, &self.shminfo) == 0 {
-                return Err(ScreenCaptureError::Initialisation {
+                return Err(ScreenCaptureError::InitialisationError {
                     msg: "could not attach shared memory".to_string(),
                 });
             }
@@ -202,7 +202,7 @@ impl Capture for CaptureX11 {
     fn capture_image(&mut self) -> Result<(), ScreenCaptureError> {
         self.poison_image();
         if self.image.is_none() {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::InitialisationError {
                 msg: "prepare capture wasn't called before capture".to_owned(),
             });
         }
@@ -220,7 +220,7 @@ impl Capture for CaptureX11 {
         if is_success {
             Ok(())
         } else {
-            return Err(ScreenCaptureError::Transient {
+            return Err(ScreenCaptureError::TransientError {
                 msg: "XShmGetImage failed".to_owned(),
             });
         }
@@ -229,7 +229,7 @@ impl Capture for CaptureX11 {
     fn image(&mut self) -> Result<Box<dyn ImageBGR>, ScreenCaptureError> {
         self.poison_image();
         if self.image.is_none() {
-            return Err(ScreenCaptureError::Initialisation {
+            return Err(ScreenCaptureError::InitialisationError {
                 msg: "prepare capture wasn't called before capture".to_owned(),
             });
         }
