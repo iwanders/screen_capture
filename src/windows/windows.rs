@@ -366,11 +366,9 @@ impl CaptureWin {
         _y: u32,
         _width: u32,
         _height: u32,
-    ) -> Result<(), WinError> {
-        self.init_output(display)
-            .expect_with("Should be able to setup the output.");
-        self.init_duplicator()
-            .expect_with("Should be able to get the duplicator.");
+    ) -> Result<(), ScreenCaptureError> {
+        self.init_output(display)?;
+        self.init_duplicator()?;
         Ok(())
     }
 
@@ -571,7 +569,7 @@ impl Capture for CaptureWin {
         width: u32,
         height: u32,
     ) -> Result<(), ScreenCaptureError> {
-        CaptureWin::prepare(self, display, x, y, width, height).map_err(initialisation_error)
+        CaptureWin::prepare(self, display, x, y, width, height)
     }
 }
 
