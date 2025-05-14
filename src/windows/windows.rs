@@ -284,34 +284,75 @@ impl CaptureWin {
             //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_MESSAGE, true).map_err(initialisation_error)?;
             //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true).map_err(initialisation_error)?;
             // Add a dummy message for testing.
-            const DUMMY_DATA: [u8; 5] = [0x41, 0x42, 0x43, 0x44, 0]; // ABC\x00
-            let mut_pointer_to_const_sketchy = std::mem::transmute::<_, *mut u8>(DUMMY_DATA.as_ptr());
-            info_queue.AddMessage(
-                windows::Win32::Graphics::Dxgi::DXGI_INFO_QUEUE_MESSAGE_CATEGORY_CLEANUP,
-                windows::Win32::Graphics::Dxgi::DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING,
-                windows::Win32::Graphics::Direct3D11::D3D11_MESSAGE_ID_UNKNOWN,
-                windows::Win32::Foundation::PSTR(mut_pointer_to_const_sketchy)).map_err(initialisation_error)?;
+            if false {
+                const DUMMY_DATA: [u8; 5] = [0x41, 0x42, 0x43, 0x44, 0]; // ABC\x00
+                let mut_pointer_to_const_sketchy =
+                    std::mem::transmute::<_, *mut u8>(DUMMY_DATA.as_ptr());
+                info_queue
+                    .AddMessage(
+                        windows::Win32::Graphics::Dxgi::DXGI_INFO_QUEUE_MESSAGE_CATEGORY_CLEANUP,
+                        windows::Win32::Graphics::Dxgi::DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING,
+                        windows::Win32::Graphics::Direct3D11::D3D11_MESSAGE_ID_UNKNOWN,
+                        windows::Win32::Foundation::PSTR(mut_pointer_to_const_sketchy),
+                    )
+                    .map_err(initialisation_error)?;
+            }
         }
         Ok(())
     }
 
-
-    pub fn get_debug_message(&self) -> Result<Option<String>, ScreenCaptureError> {
+    pub fn get_debug_messages(&self) -> Result<Vec<String>, ScreenCaptureError> {
         if self.info_queue.is_none() {
             return Err(ScreenCaptureError::InitialisationError {
                 msg: "cannot get debug message without init_debug called".to_owned(),
             });
         }
         let info_queue = self.info_queue.as_ref().unwrap();
-
+        let mut msgs = vec![];
         unsafe {
-            let mut message_length: usize = 0;
-            let length_result = info_queue.GetMessage(0,  std::ptr::null_mut(), &mut message_length);
-            println!("Message length: {message_length:?}");
-            let mut data = vec![0; message_length];
-        }
+            let current_count = info_queue.GetNumStoredMessages();
+            for i in 0..current_count {
+                let mut message_length: usize = 0;
+                info_queue
+                    .GetMessage(i, std::ptr::null_mut(), &mut message_length)
+                    .map_err(lost_capture_error)?;
+                if message_length == 0 {
+                    break;
+                }
+                let mut data = vec![0; message_length];
+                let msg_ptr: *mut D3D11_MESSAGE = std::mem::transmute(data.as_mut_ptr());
+                info_queue
+                    .GetMessage(0, msg_ptr, &mut message_length)
+                    .map_err(lost_capture_error)?;
+                let descr_slice = std::slice::from_raw_parts(
+                    (*msg_ptr).pDescription,
+                    (*msg_ptr).DescriptionByteLength,
+                );
+                let desc = std::ffi::CStr::from_bytes_with_nul_unchecked(descr_slice);
+                let desc_str = desc.to_str().expect("should be a valid utf 8 string");
+                let formatted = format!(
+                    "{:?} {:?} {:?}: {}",
+                    (*msg_ptr).Category,
+                    (*msg_ptr).Severity,
+                    (*msg_ptr).ID,
+                    desc_str
+                );
+                msgs.push(formatted);
+            }
 
-        Ok(None)
+            info_queue.ClearStoredMessages();
+        }
+        Ok(msgs)
+    }
+
+    fn dump_debug_messages(&self) {
+        if let Ok(msgs) = self.get_debug_messages() {
+            for msg in msgs {
+                println!("D3D Debug Message: {msg}");
+            }
+        } else {
+            println!("Failed to get debug messages!");
+        }
     }
 
     fn init_output(&mut self, desired: u32) -> Result<(), ScreenCaptureError> {
@@ -454,8 +495,7 @@ impl CaptureWin {
             }
         };
         if let Err(ref r) = res {
-            let msg = self.get_debug_message();
-            println!("Msg: {msg:?}");
+            self.dump_debug_messages();
             // println!("got an error error!: {:?}", r);
             // Error handling from the c++ implementation.
             if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_ACCESS_LOST {
@@ -610,7 +650,7 @@ impl CaptureWin {
 impl Capture for CaptureWin {
     fn capture_image(&mut self) -> Result<(), ScreenCaptureError> {
         let res = CaptureWin::capture(self);
-        
+
         res.map_err(|v| Into::<ScreenCaptureError>::into(v))
     }
     fn image(&mut self) -> std::result::Result<Box<dyn ImageBGR>, ScreenCaptureError> {
