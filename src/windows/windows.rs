@@ -275,8 +275,43 @@ impl CaptureWin {
         let info_queue: Result<ID3D11InfoQueue, WinError> =
             self.debug_device.as_ref().unwrap().cast();
         self.info_queue = Some(info_queue.map_err(initialisation_error)?);
-
+        let info_queue = self.info_queue.as_ref().unwrap();
+        unsafe {
+            // Enabling this actually makes it abort if a message is encountered, can we hook up a printer?
+            //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true).map_err(initialisation_error)?;
+            //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true).map_err(initialisation_error)?;
+            //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_INFO, true).map_err(initialisation_error)?;
+            //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_MESSAGE, true).map_err(initialisation_error)?;
+            //info_queue.SetBreakOnSeverity(DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true).map_err(initialisation_error)?;
+            // Add a dummy message for testing.
+            const DUMMY_DATA: [u8; 5] = [0x41, 0x42, 0x43, 0x44, 0]; // ABC\x00
+            let mut_pointer_to_const_sketchy = std::mem::transmute::<_, *mut u8>(DUMMY_DATA.as_ptr());
+            info_queue.AddMessage(
+                windows::Win32::Graphics::Dxgi::DXGI_INFO_QUEUE_MESSAGE_CATEGORY_CLEANUP,
+                windows::Win32::Graphics::Dxgi::DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING,
+                windows::Win32::Graphics::Direct3D11::D3D11_MESSAGE_ID_UNKNOWN,
+                windows::Win32::Foundation::PSTR(mut_pointer_to_const_sketchy)).map_err(initialisation_error)?;
+        }
         Ok(())
+    }
+
+
+    pub fn get_debug_message(&self) -> Result<Option<String>, ScreenCaptureError> {
+        if self.info_queue.is_none() {
+            return Err(ScreenCaptureError::InitialisationError {
+                msg: "cannot get debug message without init_debug called".to_owned(),
+            });
+        }
+        let info_queue = self.info_queue.as_ref().unwrap();
+
+        unsafe {
+            let mut message_length: usize = 0;
+            let length_result = info_queue.GetMessage(0,  std::ptr::null_mut(), &mut message_length);
+            println!("Message length: {message_length:?}");
+            let mut data = vec![0; message_length];
+        }
+
+        Ok(None)
     }
 
     fn init_output(&mut self, desired: u32) -> Result<(), ScreenCaptureError> {
@@ -419,6 +454,8 @@ impl CaptureWin {
             }
         };
         if let Err(ref r) = res {
+            let msg = self.get_debug_message();
+            println!("Msg: {msg:?}");
             // println!("got an error error!: {:?}", r);
             // Error handling from the c++ implementation.
             if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_ACCESS_LOST {
@@ -573,6 +610,7 @@ impl CaptureWin {
 impl Capture for CaptureWin {
     fn capture_image(&mut self) -> Result<(), ScreenCaptureError> {
         let res = CaptureWin::capture(self);
+        
         res.map_err(|v| Into::<ScreenCaptureError>::into(v))
     }
     fn image(&mut self) -> std::result::Result<Box<dyn ImageBGR>, ScreenCaptureError> {
