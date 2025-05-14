@@ -172,6 +172,8 @@ struct CaptureWin {
     adaptor: Option<IDXGIAdapter1>,
     device: Option<ID3D11Device>,
     device_context: Option<ID3D11DeviceContext>,
+    debug_device: Option<ID3D11Debug>,
+    info_queue: Option<ID3D11InfoQueue>,
     output: Option<IDXGIOutput>,
     duplicator: Option<IDXGIOutputDuplication>,
 
@@ -240,7 +242,7 @@ impl CaptureWin {
                 windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_9_3,
             ];
 
-            if unsafe {
+            let create_device_res = unsafe {
                 D3D11CreateDevice(
                     &adapter,                                                    // padapter: Param0,
                     windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_UNKNOWN, // drivertype: D3D_DRIVER_TYPE,
@@ -253,10 +255,10 @@ impl CaptureWin {
                     &mut level_used,             // pfeaturelevel: *mut D3D_FEATURE_LEVEL,
                     &mut self.device_context, // ppimmediatecontext: *mut Option<ID3D11DeviceContext>
                 )
-            }
-            .is_ok()
-            {
+            };
+            if create_device_res.is_ok() {
                 self.adaptor = Some(adapter);
+
                 return Ok(()); // we had success.
             };
         }
@@ -264,6 +266,17 @@ impl CaptureWin {
         Err(ScreenCaptureError::InitialisationError {
             msg: "failed to find adapter".to_owned(),
         })
+    }
+
+    fn init_debug(&mut self) -> Result<(), ScreenCaptureError> {
+        // Now that we have the device, we can create the debug device and info queue.
+        let debug_device: Result<ID3D11Debug, WinError> = self.device.as_ref().unwrap().cast();
+        self.debug_device = Some(debug_device.map_err(initialisation_error)?);
+        let info_queue: Result<ID3D11InfoQueue, WinError> =
+            self.debug_device.as_ref().unwrap().cast();
+        self.info_queue = Some(info_queue.map_err(initialisation_error)?);
+
+        Ok(())
     }
 
     fn init_output(&mut self, desired: u32) -> Result<(), ScreenCaptureError> {
@@ -362,6 +375,7 @@ impl CaptureWin {
     pub fn new() -> Result<CaptureWin, ScreenCaptureError> {
         let mut n: CaptureWin = Default::default();
         n.init_adaptor()?;
+        n.init_debug()?;
         Ok(n)
     }
 
@@ -415,6 +429,13 @@ impl CaptureWin {
                 // create a new IDXGIOutputDuplication for the new content.
                 // self.duplicator = None;
                 // The other side will just re-initialise.
+                return Err(ScreenCaptureError::LostCaptureError {
+                    msg: format!("{r:?}"),
+                });
+            } else if r.code() == windows::Win32::Graphics::Dxgi::DXGI_ERROR_INVALID_CALL {
+                // Dxgi invallid call, we can check the error messages here.
+
+                // Well, we timed out, and we don't have any image... bummer.
                 return Err(ScreenCaptureError::LostCaptureError {
                     msg: format!("{r:?}"),
                 });
