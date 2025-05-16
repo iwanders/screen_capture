@@ -222,12 +222,14 @@ impl CaptureWin {
             }
 
             // Print some info about the adapter.
+            /*
             println!(
                 "Adapter {} -> {:#?} with {} memory",
                 i,
                 from_wide(&desc.Description),
                 desc.DedicatedVideoMemory
             );
+            */
 
             // Instantiate the d3d11 device now.
             let sdk_version = windows::Win32::Graphics::Direct3D11::D3D11_SDK_VERSION;
@@ -436,6 +438,7 @@ impl CaptureWin {
                 DesktopImageInSystemMemory: windows::Win32::Foundation::BOOL(0),
             };
             duplicator.GetDesc(&mut desc);
+            /*
             println!(
                 "Duplicator initialised: {}x{} @ {}/{}, in memory: {}",
                 desc.ModeDesc.Width,
@@ -443,7 +446,7 @@ impl CaptureWin {
                 desc.ModeDesc.RefreshRate.Numerator,
                 desc.ModeDesc.RefreshRate.Denominator,
                 desc.DesktopImageInSystemMemory.0
-            );
+            );*/
         }
         Ok(())
     }
