@@ -221,7 +221,7 @@ type XErrorHandler = unsafe extern "C" fn(*mut Display, *mut XErrorEvent) -> i32
 pub const AllPlanes: u64 = 0xFFFFFFFFFFFFFFFF;
 
 #[link(name = "X11")]
-extern "C" {
+unsafe extern "C" {
     pub fn XOpenDisplay(text: *const libc::c_char) -> *mut Display;
 
     pub fn XRootWindow(display: *mut Display, screen_number: i32) -> Window;
@@ -254,7 +254,7 @@ extern "C" {
 }
 
 #[link(name = "Xext")]
-extern "C" {
+unsafe extern "C" {
     pub fn XShmQueryExtension(display: *mut Display) -> Bool;
 
     pub fn XShmCreateImage(
