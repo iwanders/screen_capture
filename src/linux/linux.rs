@@ -220,9 +220,9 @@ impl Capture for CaptureX11 {
         if is_success {
             Ok(())
         } else {
-            return Err(ScreenCaptureError::TransientError {
+            Err(ScreenCaptureError::TransientError {
                 msg: "XShmGetImage failed".to_owned(),
-            });
+            })
         }
     }
 

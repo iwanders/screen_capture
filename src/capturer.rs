@@ -153,7 +153,7 @@ impl Capturer {
         self.update_resolution()?;
 
         // Now, we are ready to try and get the image:
-        let _ = self.grabber.capture_image()?;
+        self.grabber.capture_image()?;
 
         // Then, we can grab the actual image.
         Ok(self.grabber.image().unwrap())

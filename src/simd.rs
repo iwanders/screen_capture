@@ -15,9 +15,9 @@ macro_rules! trace {
 }
 #[allow(dead_code)]
 /// Print a vector of m256 type.
-unsafe fn pl(input: &__m256i) -> String {
+fn pl(input: &__m256i) -> String {
     let v: [u8; 32] = [0; 32];
-    _mm256_storeu_si256(v.as_ptr() as *mut _, *input);
+    unsafe { _mm256_storeu_si256(v.as_ptr() as *mut _, *input) };
     format!("{:02X?} | {:02X?}", &v[0..16], &v[16..])
 }
 
@@ -33,8 +33,7 @@ pub fn avx2_simd_bgr_to_rgba(width: u32, height: u32, data: &[BGR]) -> image::Rg
         let data_ptr = std::mem::transmute::<*const BGR, *const u8>(data.as_ptr());
         let pixels = (width * height) as usize;
         let total_len = pixels * 4;
-        let mut output: Vec<u8> = Vec::with_capacity(total_len);
-        output.set_len(total_len);
+        let mut output: Vec<u8> = vec![0; total_len];
         let output_ptr = output.as_mut_ptr();
         // 256  / 8 = 32 bytes, 32 / 4 = 8 blocks of BGRA fit into a vector.
         const STEP_SIZE: usize = 256 / 8;

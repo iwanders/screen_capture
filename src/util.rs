@@ -11,7 +11,7 @@ pub fn read_ppm(filename: &str) -> Result<Box<dyn ImageBGR>, Box<dyn std::error:
     let mut lines = br.lines();
 
     fn make_error(v: &str) -> Box<dyn std::error::Error> {
-        Box::new(std::io::Error::new(std::io::ErrorKind::Other, v))
+        Box::new(std::io::Error::other(v))
     }
 
     // First, read the type, this must be P3
