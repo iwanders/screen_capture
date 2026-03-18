@@ -41,10 +41,29 @@ fn test_threaded() {
     std::thread::sleep(Duration::from_millis(5000));
 }
 
+#[allow(unused)]
+fn simple_benchmark_rgb(img: &dyn screen_capture::ImageBGR) {
+    for _ in 0..100 {
+        let start = Instant::now();
+        let img_rgb = img.to_rgb();
+        let duration = start.elapsed();
+        img_rgb
+            .save(
+                temp_dir()
+                    .join("img_to_rgb.png")
+                    .to_str()
+                    .expect("path must be ok"),
+            )
+            .unwrap();
+        println!("Time via to_rgb: {:?}", duration);
+    }
+    std::process::exit(0);
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     test_threaded();
 
-    use screen_capture::util::{read_ppm, WriteSupport};
+    use screen_capture::util::{WriteSupport, read_ppm};
 
     let mut grabber = screen_capture::capture()?;
 
@@ -80,6 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let img = grabber.image().expect("grab image should succeed");
 
     // res = grabber.capture_image();
+    // simple_benchmark_rgb(&*img);
 
     println!("Capture writing to temp {:?}", temp_dir());
     img.write_ppm(
