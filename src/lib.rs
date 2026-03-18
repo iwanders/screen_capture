@@ -149,25 +149,25 @@ pub trait ImageBGR {
     fn to_rgba_simple(&self) -> image::RgbaImage {
         let data = self.data();
         let total_len = (self.width() * self.height() * 4) as usize;
-        let mut new_data = Vec::with_capacity(total_len);
-        // This minor application of unsafe to create an uninitialised vector
-        // speeds things up tremendously.
-        // Clippy complains about this in rust 1.94, but this needs a benchmark before change.
-        unsafe {
-            new_data.set_len(total_len);
-        };
+        let mut data_buffer = Vec::with_capacity(total_len);
+        let new_data = data_buffer.spare_capacity_mut();
         for (i, src_pixel) in data
             .iter()
             .enumerate()
             .take((self.width() * self.height()) as usize)
         {
             let out_pos = i * 4;
-            new_data[out_pos] = src_pixel.r;
-            new_data[out_pos + 1] = src_pixel.g;
-            new_data[out_pos + 2] = src_pixel.b;
-            new_data[out_pos + 3] = 255;
+            new_data[out_pos].write(src_pixel.r);
+            new_data[out_pos + 1].write(src_pixel.g);
+            new_data[out_pos + 2].write(src_pixel.b);
+            new_data[out_pos + 3].write(255);
         }
-        image::RgbaImage::from_raw(self.width(), self.height(), new_data)
+        // This minor application of unsafe to create an uninitialised vector
+        // speeds things up tremendously.
+        unsafe {
+            data_buffer.set_len(total_len);
+        };
+        image::RgbaImage::from_raw(self.width(), self.height(), data_buffer)
             .expect("must have correct dimensions")
     }
 
@@ -188,24 +188,24 @@ pub trait ImageBGR {
     fn to_rgb(&self) -> image::RgbImage {
         let data = self.data();
         let total_len = (self.width() * self.height() * 3) as usize;
-        let mut new_data = Vec::with_capacity(total_len);
-        // This minor application of unsafe to create an uninitialised vector
-        // speeds things up tremendously.
-        unsafe {
-            new_data.set_len(total_len);
-        };
-        // for i in 0..(self.width() * self.height()) as usize {
+        let mut data_buffer = Vec::with_capacity(total_len);
+        let new_data = data_buffer.spare_capacity_mut();
         for (i, src_pixel) in data
             .iter()
             .enumerate()
             .take((self.width() * self.height()) as usize)
         {
             let out_pos = i * 3;
-            new_data[out_pos] = src_pixel.r;
-            new_data[out_pos + 1] = src_pixel.g;
-            new_data[out_pos + 2] = src_pixel.b;
+            new_data[out_pos].write(src_pixel.r);
+            new_data[out_pos + 1].write(src_pixel.g);
+            new_data[out_pos + 2].write(src_pixel.b);
         }
-        image::RgbImage::from_raw(self.width(), self.height(), new_data)
+        // This minor application of unsafe to create an uninitialised vector
+        // speeds things up tremendously.
+        unsafe {
+            data_buffer.set_len(total_len);
+        };
+        image::RgbImage::from_raw(self.width(), self.height(), data_buffer)
             .expect("must have correct dimensions")
     }
 }
