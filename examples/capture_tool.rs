@@ -1,8 +1,7 @@
 use image::GenericImageView;
+use screen_capture::{CaptureConfig, CaptureSpecification, ThreadedCapturer};
 use std::env::temp_dir;
 use std::time::{Duration, Instant};
-
-use screen_capture::{CaptureConfig, CaptureSpecification, ThreadedCapturer};
 
 use std::path::PathBuf;
 
@@ -48,6 +47,16 @@ enum Commands {
         #[arg(short, long, default_value = "0.0")]
         delay: f32,
     },
+    /// Capture screenshots periodic.
+    Periodic {
+        /// Delay to wait, defaults to 0.0 seconds.
+        #[arg(short, long, default_value = "10.0")]
+        interval: f32,
+
+        /// Limit the number of captures.
+        #[arg(short, long, value_name = "LIMIT")]
+        limit: Option<usize>,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -86,6 +95,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
     }
 
+    fn make_filename() -> String {
+        let utc: DateTime<Utc> = Utc::now(); // e.g. `2014-11-28T12:45:59.324310806Z`
+        let name = utc.format("%Y-%m-%d__%H_%M_%S.png").to_string();
+        name
+    }
+
     let output_dir = args.output_dir;
     match args.command {
         Commands::Single { delay } => {
@@ -93,10 +108,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             grabber.capture_image()?;
             let img = grabber.image()?;
             let img_rgba = img.to_rgba();
-            let utc: DateTime<Utc> = Utc::now(); // e.g. `2014-11-28T12:45:59.324310806Z`
-            let name = utc.format("%Y-%m-%d__%H_%M_%S.png").to_string();
-            let output_path = output_dir.join(name);
-            img_rgba.save(output_path)?;
+
+            let output_path = output_dir.join(make_filename());
+            img_rgba.save(&output_path)?;
+            println!("Saved {output_path:?}");
+        }
+        Commands::Periodic { interval, limit } => {
+            for _ in 1..limit.unwrap_or(usize::MAX) {
+                let start = Instant::now();
+                grabber.capture_image()?;
+                let img = grabber.image()?;
+                let img_rgba = img.to_rgba();
+                let output_path = output_dir.join(make_filename());
+                img_rgba.save(&output_path)?;
+                println!("Saved {output_path:?}");
+                let time_taken = (Instant::now() - start).as_secs_f32();
+                let remaining_sleep = (interval - time_taken).max(0.0);
+                std::thread::sleep(Duration::from_secs_f32(remaining_sleep));
+            }
         }
     }
 
