@@ -29,4 +29,10 @@ features = [
 ]
 
 [dev-dependencies]
+# For the main test binary
 image = { version = "0.25.1", default-features = false, features = ["png"] }
+
+# For the capture tool
+clap = { version = "4.6.0", features = ["derive"] }
+serde_yaml = "0.8"
+chrono = "0.4.44"
