@@ -102,6 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let output_dir = args.output_dir;
+    std::fs::create_dir_all(&output_dir)?;
     match args.command {
         Commands::Single { delay } => {
             std::thread::sleep(Duration::from_secs_f32(delay));
