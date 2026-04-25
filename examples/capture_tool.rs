@@ -1,6 +1,4 @@
-use image::GenericImageView;
-use screen_capture::{CaptureConfig, CaptureSpecification, ThreadedCapturer};
-use std::env::temp_dir;
+use screen_capture::CaptureSpecification;
 use std::time::{Duration, Instant};
 
 use std::path::PathBuf;
@@ -34,6 +32,10 @@ struct Cli {
     /// The area to capture, this is mostly useful on linux to capture either my left or right monitor.
     #[arg(short, long, value_name = "AREA", default_value = "full")]
     area: Option<Area>,
+
+    /// Preserve the alpha when writing to disk, this avoids the rgba->rgb shuffle, but files are 4 channels and larger.
+    #[arg(short, long)]
+    preserve_alpha: bool,
 
     #[command(subcommand)]
     command: Commands,
@@ -108,10 +110,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::thread::sleep(Duration::from_secs_f32(delay));
             grabber.capture_image()?;
             let img = grabber.image()?;
-            let img_rgba = img.to_rgba();
+
+            let img_rgb = if args.preserve_alpha {
+                image::DynamicImage::ImageRgba8(img.to_rgba())
+            } else {
+                image::DynamicImage::ImageRgb8(img.to_rgb())
+            };
 
             let output_path = output_dir.join(make_filename());
-            img_rgba.save(&output_path)?;
+            img_rgb.save(&output_path)?;
             println!("Saved {output_path:?}");
         }
         Commands::Periodic { interval, limit } => {
@@ -119,9 +126,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let start = Instant::now();
                 grabber.capture_image()?;
                 let img = grabber.image()?;
-                let img_rgba = img.to_rgba();
+                let img_rgb = if args.preserve_alpha {
+                    image::DynamicImage::ImageRgba8(img.to_rgba())
+                } else {
+                    image::DynamicImage::ImageRgb8(img.to_rgb())
+                };
                 let output_path = output_dir.join(make_filename());
-                img_rgba.save(&output_path)?;
+                img_rgb.save(&output_path)?;
                 println!("Saved {output_path:?}");
                 let time_taken = (Instant::now() - start).as_secs_f32();
                 let remaining_sleep = (interval - time_taken).max(0.0);
