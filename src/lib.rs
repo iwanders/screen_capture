@@ -126,11 +126,11 @@ pub trait ImageBGR {
     /// Returns a specific pixel's value. The x must be less then width, y less than height.
     fn pixel(&self, x: u32, y: u32) -> BGR;
 
-    /// Returns the raw data buffer behind this image.
+    /// Returns the pixel data buffer behind this image.
     fn data(&self) -> &[BGR];
 
-    /// False color RGBA conversion, this results in blue and red swapped, and full translucency.
-    fn to_rgba_false(&self) -> image::RgbaImage {
+    /// Returns the pixel data as raw bytes.
+    fn bytes(&self) -> &[u8] {
         let data = self.data();
         let data_u8 = unsafe {
             let width = self.width() as usize;
@@ -141,7 +141,12 @@ pub trait ImageBGR {
             let len = width * height * 4;
             std::slice::from_raw_parts(data_u8_ptr, len)
         };
-        image::RgbaImage::from_raw(self.width(), self.height(), data_u8.to_vec())
+        data_u8
+    }
+
+    /// False color RGBA conversion, this results in blue and red swapped, and full translucency.
+    fn to_rgba_false(&self) -> image::RgbaImage {
+        image::RgbaImage::from_raw(self.width(), self.height(), self.bytes().to_vec())
             .expect("must have correct dimensions")
     }
 

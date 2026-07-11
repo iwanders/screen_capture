@@ -6,9 +6,9 @@ authors = ["Ivor Wanders <ivor@iwanders.net>"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-image = { version = "0.25.1", default-features = false }
+image = { version = "0.25", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
-thiserror = "2.0.12"
+thiserror = "2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.112"
@@ -30,7 +30,7 @@ features = [
 
 [dev-dependencies]
 # For the main test binary
-image = { version = "0.25.1", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 # For the capture tool
 clap = { version = "4.6.0", features = ["derive"] }

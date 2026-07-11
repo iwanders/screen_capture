@@ -84,10 +84,7 @@ struct CaptureX11 {
 
 impl Drop for CaptureX11 {
     fn drop(&mut self) {
-        // Clean up the memory correctly.
-        unsafe {
-            XDestroyImage(self.image.unwrap());
-        }
+        self.release_image();
     }
 }
 
@@ -113,6 +110,21 @@ impl CaptureX11 {
         }
     }
 
+    fn release_image(&mut self) {
+        // Clean up the memory correctly
+        // now with shm closure, from https://xorg.freedesktop.org/archive/X11R7.5/doc/Xext/mit-shm.html
+        if let Some(img) = self.image {
+            unsafe {
+                XShmDetach(self.display, &self.shminfo);
+                XDestroyImage(img);
+                let typed_shmaddr =
+                    std::mem::transmute::<_, *const libc::c_void>(self.shminfo.shmaddr);
+                shm::shmdt(typed_shmaddr);
+                shm::shmctl(self.shminfo.shmid, shm::IPC_RMID, std::ptr::null());
+            }
+        }
+    }
+
     pub fn poison_image(&mut self) {
         self.image_poison.store(true, Relaxed);
         self.image_poison = Rc::new(false.into());
@@ -126,6 +138,7 @@ impl CaptureX11 {
         height: u32,
     ) -> Result<(), ScreenCaptureError> {
         self.poison_image();
+        self.release_image();
         let mut attributes = XWindowAttributes::default();
         let status = unsafe { XGetWindowAttributes(self.display, self.window, &mut attributes) };
         if status != 1 {

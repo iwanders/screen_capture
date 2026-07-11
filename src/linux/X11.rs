@@ -269,6 +269,7 @@ unsafe extern "C" {
     ) -> *mut XImage;
 
     pub fn XShmAttach(display: *mut Display, shminfo: *const XShmSegmentInfo) -> Bool;
+    pub fn XShmDetach(display: *mut Display, shminfo: *const XShmSegmentInfo) -> Bool;
     pub fn XShmGetImage(
         display: *mut Display,
         d: Drawable,
