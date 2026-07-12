@@ -61,8 +61,6 @@ fn simple_benchmark_rgb(img: &dyn screen_capture::ImageBGR) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    test_threaded();
-
     use screen_capture::util::{WriteSupport, read_ppm};
 
     let mut grabber = screen_capture::capture()?;
@@ -97,6 +95,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Capture tried to capture image, succes? {:?}", res);
     let img = grabber.image().expect("grab image should succeed");
+
+    let flat = img.as_flat_samples();
+    let flat_img = flat.try_into_buffer::<image::Rgba<u8>>().unwrap();
+    flat_img.save("/tmp/image_from_flatbuffer.png").unwrap();
 
     // res = grabber.capture_image();
     // simple_benchmark_rgb(&*img);
@@ -281,6 +283,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             img.pixel(img.width() - 1, img.height() - 1)
         );
     }
+
+    test_threaded();
 
     Ok(())
 }

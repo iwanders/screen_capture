@@ -144,6 +144,30 @@ pub trait ImageBGR {
         data_u8
     }
 
+    /// Return a flat samples object, it will be [H, W, 4], with the fourth channel the padding byte.
+    ///
+    /// Returns channels as in the data; BGR_, with _ being the padding byte.
+    ///
+    /// Interpreting it as RGBA will result in a completely transparent image!
+    ///
+    fn as_flat_samples(&self) -> image::flat::FlatSamples<&[u8]> {
+        let bytes = self.bytes();
+        let layout = image::flat::SampleLayout {
+            channels: 4,
+            channel_stride: 1,
+            width: self.width(),
+            width_stride: 4,
+            height: self.height(),
+            height_stride: self.width() as usize * 4,
+        };
+
+        image::flat::FlatSamples {
+            samples: bytes,
+            layout,
+            color_hint: None,
+        }
+    }
+
     /// False color RGBA conversion, this results in blue and red swapped, and full translucency.
     fn to_rgba_false(&self) -> image::RgbaImage {
         image::RgbaImage::from_raw(self.width(), self.height(), self.bytes().to_vec())
